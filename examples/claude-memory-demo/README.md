@@ -8,7 +8,7 @@ history.
 
 1. Start Ecphoria (any of):
    ```bash
-   docker run -p 8432:8432 ghcr.io/vargafoundation/ecphoria:latest
+   docker run -p 8432:8432 ghcr.io/graalsystems/ecphoria:latest
    # or
    cargo run --bin ecphoria-server
    ```

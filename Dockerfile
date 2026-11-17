@@ -47,7 +47,7 @@ ENV ECPHORIA_RUNTIME__DB_PATH=/data/runs.db
 # Which build this is, readable from `docker inspect` — the two images are otherwise identical in
 # shape and differ only in what the binary can do.
 ARG FEATURES=""
-LABEL org.opencontainers.image.source="https://github.com/VargaFoundation/ecphoria"
+LABEL org.opencontainers.image.source="https://github.com/graalsystems/ecphoria"
 LABEL dev.ecphoria.build.features="${FEATURES}"
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \

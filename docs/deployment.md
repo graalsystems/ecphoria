@@ -18,7 +18,7 @@ docker run -d \
   -p 5432:5432 \
   -p 8432:8432 \
   -v ecphoria-data:/data \
-  ghcr.io/vargafoundation/ecphoria:latest
+  ghcr.io/graalsystems/ecphoria:latest
 ```
 
 The Docker image includes a built-in HEALTHCHECK on the `/health` endpoint.
@@ -41,7 +41,7 @@ The Docker image includes a built-in HEALTHCHECK on the `/health` endpoint.
 ## Docker Compose (Full Stack)
 
 ```bash
-git clone https://github.com/VargaFoundation/ecphoria.git
+git clone https://github.com/graalsystems/ecphoria.git
 cd ecphoria
 docker compose up -d
 ```
@@ -134,7 +134,7 @@ Each pod automatically:
 replicaCount: 3
 
 image:
-  repository: ghcr.io/vargafoundation/ecphoria
+  repository: ghcr.io/graalsystems/ecphoria
   tag: "0.1.0"
 
 config:
@@ -191,7 +191,7 @@ helm install ecphoria deploy/helm/ecphoria/ -f values-production.yaml
 | Value | Default | Description |
 |-------|---------|-------------|
 | `replicaCount` | `3` | Number of Ecphoria nodes |
-| `image.repository` | `ghcr.io/vargafoundation/ecphoria` | Docker image |
+| `image.repository` | `ghcr.io/graalsystems/ecphoria` | Docker image |
 | `image.tag` | `latest` | Image tag |
 | `config.cluster.enabled` | `true` | Enable Raft consensus |
 | `config.gateway.authEnabled` | `false` | Enable API key auth |

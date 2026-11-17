@@ -14,7 +14,7 @@ docker run -d --name ecphoria \
   -p 5432:5432 -p 8432:8432 \
   -v ecphoria-data:/data \
   -e ECPHORIA_MEMORY__EPISODIC__DB_PATH=/data/episodic.duckdb \
-  ghcr.io/vargafoundation/ecphoria:latest
+  ghcr.io/graalsystems/ecphoria:latest
 ```
 
 Verify it's running:
@@ -58,7 +58,7 @@ curl -X POST http://localhost:8432/api/v1/ingest \
 For a complete dev environment with S3-compatible storage and local embeddings:
 
 ```bash
-git clone https://github.com/VargaFoundation/ecphoria.git
+git clone https://github.com/graalsystems/ecphoria.git
 cd ecphoria
 docker compose up -d
 ```
@@ -102,7 +102,7 @@ helm install ecphoria deploy/helm/ecphoria/ --set replicaCount=3
 ## Build from Source
 
 ```bash
-git clone https://github.com/VargaFoundation/ecphoria.git
+git clone https://github.com/graalsystems/ecphoria.git
 cd ecphoria
 cargo build --release
 ```

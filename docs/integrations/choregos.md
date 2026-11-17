@@ -1,6 +1,6 @@
 # Choregos
 
-[Choregos](https://github.com/VargaFoundation/choregos) is an orchestrator: it plans work, runs
+[Choregos](https://github.com/graalsystems/tranibor) is an orchestrator: it plans work, runs
 coding agents against a repository, gates what they produce and files the result in a tracker.
 Ecphoria is where it keeps what it learned.
 

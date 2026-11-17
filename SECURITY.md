@@ -9,7 +9,7 @@ release. Until 1.0, only the most recent minor version receives fixes.
 
 **Please do not open a public issue for a security vulnerability.**
 
-Report privately via GitHub's [private vulnerability reporting](https://github.com/VargaFoundation/ecphoria/security/advisories/new)
+Report privately via GitHub's [private vulnerability reporting](https://github.com/graalsystems/ecphoria/security/advisories/new)
 (Security → Report a vulnerability), or email the maintainers listed in
 [CODEOWNERS](.github/CODEOWNERS).
 

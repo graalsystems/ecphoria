@@ -44,7 +44,7 @@ export ECPHORIA_API_KEY=$(openssl rand -hex 32)
 docker run -d --name ecphoria -p 5432:5432 -p 8432:8432 -v ecphoria-data:/data \
   -e ECPHORIA_GATEWAY__AUTH_ENABLED=true \
   -e ECPHORIA_GATEWAY__API_KEYS="$ECPHORIA_API_KEY" \
-  ghcr.io/vargafoundation/ecphoria:latest
+  ghcr.io/graalsystems/ecphoria:latest
 ```
 
 ### Configuration that matters for this workload

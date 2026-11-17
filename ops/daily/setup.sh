@@ -24,7 +24,7 @@ else
   say "NOT reachable at $URL — start one first:"
   say ""
   say "    docker run -d --name ecphoria -p 5432:5432 -p 8432:8432 \\"
-  say "      -v ecphoria-data:/data ghcr.io/vargafoundation/ecphoria:latest"
+  say "      -v ecphoria-data:/data ghcr.io/graalsystems/ecphoria:latest"
   say ""
   say "  or from a checkout:  cargo run --release --bin ecphoria-server"
   exit 1

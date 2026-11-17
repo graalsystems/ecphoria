@@ -1,6 +1,6 @@
 # @ecphoria/client
 
-TypeScript/JavaScript client for the [Ecphoria](https://github.com/VargaFoundation/ecphoria) context lake.
+TypeScript/JavaScript client for the [Ecphoria](https://github.com/graalsystems/ecphoria) context lake.
 
 Zero runtime dependencies — uses the native `fetch` API (Node 18+, Deno, Bun, browsers).
 

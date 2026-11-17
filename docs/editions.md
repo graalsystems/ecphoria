@@ -18,8 +18,8 @@ config; a capability that is not compiled in cannot be switched on by anyone.
 | LLM proxy (`/v1/chat/completions`, `/v1/embeddings`, `/v1/messages`) | — | ✅ |
 
 ```bash
-docker pull ghcr.io/vargafoundation/ecphoria:latest          # full
-docker pull ghcr.io/vargafoundation/ecphoria:latest-memory   # memory only
+docker pull ghcr.io/graalsystems/ecphoria:latest          # full
+docker pull ghcr.io/graalsystems/ecphoria:latest-memory   # memory only
 ```
 
 Both images are built from the same Dockerfile, signed with cosign and carry an SBOM attestation.

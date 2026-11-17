@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/VargaFoundation/ecphoria/actions/workflows/ci.yml"><img src="https://github.com/VargaFoundation/ecphoria/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/VargaFoundation/ecphoria/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/graalsystems/ecphoria/actions/workflows/ci.yml"><img src="https://github.com/graalsystems/ecphoria/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/graalsystems/ecphoria/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
 ---
@@ -89,7 +89,7 @@ docker run -d --name ecphoria \
   -v ecphoria-data:/data \
   -e ECPHORIA_GATEWAY__AUTH_ENABLED=true \
   -e ECPHORIA_GATEWAY__API_KEYS="$ECPHORIA_API_KEY" \
-  ghcr.io/vargafoundation/ecphoria:latest
+  ghcr.io/graalsystems/ecphoria:latest
 
 AUTH="Authorization: Bearer $ECPHORIA_API_KEY"
 ```
@@ -172,7 +172,7 @@ Ecphoria replaces all of that:
 
 ```
 Before:  PostgreSQL + pgvector + Redis + embedding API + glue code
-After:   docker run ghcr.io/vargafoundation/ecphoria   (one container, API key required)
+After:   docker run ghcr.io/graalsystems/ecphoria   (one container, API key required)
 ```
 
 ### Comparison
@@ -313,7 +313,7 @@ Ecphoria automatically:
 
 | Mode | Command | Best for |
 |------|---------|----------|
-| Docker | `docker run ghcr.io/vargafoundation/ecphoria` | Dev, small prod |
+| Docker | `docker run ghcr.io/graalsystems/ecphoria` | Dev, small prod |
 | Compose | `docker compose up` | Teams, full stack |
 | Cluster | `docker compose -f deploy/docker-compose.cluster.yml up` | HA testing |
 | Kubernetes | `helm install ecphoria deploy/helm/ecphoria/` | Production HA |
@@ -338,7 +338,7 @@ Ecphoria automatically:
 ## Full Dev Stack
 
 ```bash
-git clone https://github.com/VargaFoundation/ecphoria.git
+git clone https://github.com/graalsystems/ecphoria.git
 cd ecphoria
 export ECPHORIA_API_KEY=$(openssl rand -hex 32)   # compose refuses to start without one
 docker compose up -d

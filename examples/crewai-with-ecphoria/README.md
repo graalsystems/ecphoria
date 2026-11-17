@@ -1,6 +1,6 @@
 # CrewAI with Ecphoria Memory Backend
 
-This example shows how to use [Ecphoria](https://github.com/VargaFoundation/ecphoria) as a persistent memory backend for [CrewAI](https://github.com/crewAIInc/crewAI) agents.
+This example shows how to use [Ecphoria](https://github.com/graalsystems/ecphoria) as a persistent memory backend for [CrewAI](https://github.com/crewAIInc/crewAI) agents.
 
 Ecphoria provides episodic, semantic, and state memory — giving your crew long-term recall across runs.
 
@@ -8,7 +8,7 @@ Ecphoria provides episodic, semantic, and state memory — giving your crew long
 
 1. A running Ecphoria server:
    ```bash
-   docker run -p 8432:8432 ghcr.io/vargafoundation/ecphoria:latest
+   docker run -p 8432:8432 ghcr.io/graalsystems/ecphoria:latest
    ```
 
 2. Install dependencies:
