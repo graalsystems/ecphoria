@@ -2,6 +2,16 @@
 
 All notable changes to Ecphoria will be documented in this file.
 
+## [0.2.6] - 2026-11-18
+
+### Bug Fixes
+
+- *(ci)* Two of the three guardrails guarded nothing
+
+### Miscellaneous
+
+- The publisher is GRAAL.SYSTEMS SAS; images (`ghcr.io/graalsystems/ecphoria`, `-operator`) and links move to graalsystems
+
 ## [0.2.4] - 2026-09-20
 
 ### Miscellaneous
