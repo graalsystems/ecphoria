@@ -8,11 +8,11 @@ combination nobody tests.
 
 | Artifact | Where | Signed |
 | :-- | :-- | :-- |
-| `ghcr.io/vargafoundation/ecphoria:{version}` | GHCR, linux/amd64 + linux/arm64 | cosign (keyless, GitHub OIDC) |
+| `ghcr.io/graalsystems/ecphoria:{version}` | GHCR, linux/amd64 + linux/arm64 | cosign (keyless, GitHub OIDC) |
 | `…:{version}-memory` | same, memory-only edition ([editions.md](./editions.md)) | cosign |
 | SBOM (SPDX JSON), one per image | cosign attestation + GitHub Release asset | cosign attest |
 | SLSA build provenance, one per image | attached to the image in GHCR | `attest-build-provenance` |
-| `ghcr.io/vargafoundation/ecphoria-operator:{version}` | GHCR | cosign |
+| `ghcr.io/graalsystems/ecphoria-operator:{version}` | GHCR | cosign |
 | Python SDK, npm SDK | PyPI, npm | — |
 | GitHub Release + changelog | GitHub | — |
 
@@ -64,13 +64,13 @@ changelog — a release is only as legible as the conventional-commit subjects t
 
 ```bash
 # Signature (keyless — the identity is the release workflow itself, not a key someone holds)
-cosign verify ghcr.io/vargafoundation/ecphoria:0.2.0 \
-  --certificate-identity-regexp 'https://github.com/VargaFoundation/ecphoria/.github/workflows/release.yml@.*' \
+cosign verify ghcr.io/graalsystems/ecphoria:0.2.0 \
+  --certificate-identity-regexp 'https://github.com/graalsystems/ecphoria/.github/workflows/release.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # SBOM and build provenance
-cosign verify-attestation --type spdxjson ghcr.io/vargafoundation/ecphoria:0.2.0 …
-gh attestation verify oci://ghcr.io/vargafoundation/ecphoria:0.2.0 --repo VargaFoundation/ecphoria
+cosign verify-attestation --type spdxjson ghcr.io/graalsystems/ecphoria:0.2.0 …
+gh attestation verify oci://ghcr.io/graalsystems/ecphoria:0.2.0 --repo graalsystems/ecphoria
 ```
 
 ## If a release goes wrong

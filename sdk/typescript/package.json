@@ -30,10 +30,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/VargaFoundation/ecphoria",
+    "url": "https://github.com/graalsystems/ecphoria",
     "directory": "sdk/typescript"
   },
-  "homepage": "https://github.com/VargaFoundation/ecphoria/tree/main/sdk/typescript",
+  "homepage": "https://github.com/graalsystems/ecphoria/tree/main/sdk/typescript",
   "devDependencies": {
     "typescript": "^5.4"
   },

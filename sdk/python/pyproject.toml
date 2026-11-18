@@ -16,8 +16,8 @@ dependencies = [
 keywords = ["ai", "agents", "context-lake", "memory", "vector-search"]
 
 [project.urls]
-Homepage = "https://github.com/VargaFoundation/ecphoria"
-Documentation = "https://github.com/VargaFoundation/ecphoria/tree/main/sdk/python"
+Homepage = "https://github.com/graalsystems/ecphoria"
+Documentation = "https://github.com/graalsystems/ecphoria/tree/main/sdk/python"
 
 [project.optional-dependencies]
 dev = ["pytest"]

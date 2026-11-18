@@ -1,13 +1,13 @@
 # Ecphoria Go SDK
 
-Go client for the [Ecphoria](https://github.com/VargaFoundation/ecphoria) context lake.
+Go client for the [Ecphoria](https://github.com/graalsystems/ecphoria) context lake.
 
 Zero external dependencies — uses only the Go standard library (`net/http`, `encoding/json`).
 
 ## Install
 
 ```bash
-go get github.com/VargaFoundation/ecphoria/sdk/go
+go get github.com/graalsystems/ecphoria/sdk/go
 ```
 
 ## Quick Start
@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/VargaFoundation/ecphoria/sdk/go/ecphoria"
+	"github.com/graalsystems/ecphoria/sdk/go/ecphoria"
 )
 
 func main() {

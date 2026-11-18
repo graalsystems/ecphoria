@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: operator
-          image: ghcr.io/vargafoundation/ecphoria-operator:latest
+          image: ghcr.io/graalsystems/ecphoria-operator:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: RUST_LOG

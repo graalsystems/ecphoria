@@ -1,6 +1,6 @@
 # ecphoria-client
 
-Python client for [Ecphoria](https://github.com/VargaFoundation/ecphoria) — the open-source
+Python client for [Ecphoria](https://github.com/graalsystems/ecphoria) — the open-source
 agentic memory platform.
 
 Async, typed (`py.typed`), one dependency (`httpx`). Every call retries idempotent requests with
@@ -79,5 +79,5 @@ python -m pytest -q      # offline: no server required
 python -m build          # sdist + wheel
 ```
 
-Apache-2.0. See the [repository](https://github.com/VargaFoundation/ecphoria) for the server,
+Apache-2.0. See the [repository](https://github.com/graalsystems/ecphoria) for the server,
 the CLI and the other SDKs (TypeScript, Go).

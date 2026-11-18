@@ -1,3 +1,3 @@
-module github.com/VargaFoundation/ecphoria/sdk/go
+module github.com/graalsystems/ecphoria/sdk/go
 
 go 1.21

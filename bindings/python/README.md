@@ -1,6 +1,6 @@
 # ecphoria (Python)
 
-The **embedded** [Ecphoria](https://github.com/VargaFoundation/ecphoria) agent-memory engine, in
+The **embedded** [Ecphoria](https://github.com/graalsystems/ecphoria) agent-memory engine, in
 Python — durable, bi-temporal memory with dedup, contradiction resolution, and hybrid retrieval,
 running **in-process** (no server).
 

@@ -11,7 +11,7 @@
 ### Clone and Build
 
 ```bash
-git clone https://github.com/VargaFoundation/ecphoria.git
+git clone https://github.com/graalsystems/ecphoria.git
 cd ecphoria
 cargo build
 ```

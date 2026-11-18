@@ -10,7 +10,7 @@ services:
     name: ecphoria
     runtime: image
     image:
-      url: ghcr.io/vargafoundation/ecphoria:latest
+      url: ghcr.io/graalsystems/ecphoria:latest
     plan: starter
     healthCheckPath: /health
     envVars:

@@ -66,8 +66,8 @@ so bumping `replicas` for HA is safe — only the lease holder reconciles.
 
 ```bash
 # 1) Build + push the operator image (standalone crate; build context is ops/operator):
-docker build -t ghcr.io/vargafoundation/ecphoria-operator:latest ops/operator
-docker push ghcr.io/vargafoundation/ecphoria-operator:latest
+docker build -t ghcr.io/graalsystems/ecphoria-operator:latest ops/operator
+docker push ghcr.io/graalsystems/ecphoria-operator:latest
 
 # 2) Apply the CRD + RBAC + controller in one shot:
 kubectl apply -k ops/operator/deploy

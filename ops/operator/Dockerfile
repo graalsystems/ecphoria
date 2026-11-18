@@ -1,5 +1,5 @@
 # Multi-stage build for the Ecphoria sharding operator (a standalone crate, not part of the workspace).
-# Build context is this directory: `docker build -t ghcr.io/vargafoundation/ecphoria-operator ops/operator`.
+# Build context is this directory: `docker build -t ghcr.io/graalsystems/ecphoria-operator ops/operator`.
 FROM rust:1-alpine AS chef
 # aws-lc-sys (via reqwest/kube rustls) needs cmake + a C/C++ toolchain + perl; openssl-dev covers
 # kube's default TLS backend if rustls isn't selected.

@@ -11,9 +11,9 @@ keywords:
   - memory
   - vector-search
   - raft
-home: https://github.com/VargaFoundation/ecphoria
+home: https://github.com/graalsystems/ecphoria
 sources:
-  - https://github.com/VargaFoundation/ecphoria
+  - https://github.com/graalsystems/ecphoria
 maintainers:
-  - name: Varga Foundation
-    url: https://github.com/VargaFoundation
+  - name: GRAAL.SYSTEMS SAS
+    url: https://github.com/graalsystems

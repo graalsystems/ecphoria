@@ -12,8 +12,8 @@ readme = "README.md"
 keywords = ["ai", "agents", "memory", "embeddings", "knowledge-graph"]
 
 [project.urls]
-Homepage = "https://github.com/VargaFoundation/ecphoria"
-Documentation = "https://docs.varga.foundation/docs/ecphoria"
+Homepage = "https://github.com/graalsystems/ecphoria"
+Documentation = "https://github.com/graalsystems/ecphoria/tree/main/docs"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

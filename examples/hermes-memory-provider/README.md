@@ -22,7 +22,7 @@ Hermes' provider slot already has cloud options. What this one adds:
 
 ```bash
 # 1. Run a server (see docs/getting-started.md)
-docker run -d -p 8432:8432 -v ecphoria-data:/data ghcr.io/vargafoundation/ecphoria:latest
+docker run -d -p 8432:8432 -v ecphoria-data:/data ghcr.io/graalsystems/ecphoria:latest
 
 # 2. Install the plugin
 cp -r examples/hermes-memory-provider ~/.hermes/plugins/ecphoria

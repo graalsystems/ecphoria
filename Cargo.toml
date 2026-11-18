@@ -17,7 +17,7 @@ version = "0.2.5"
 edition = "2021"
 rust-version = "1.82"
 license = "Apache-2.0"
-repository = "https://github.com/VargaFoundation/ecphoria"
+repository = "https://github.com/graalsystems/ecphoria"
 description = "The open-source agentic memory platform for AI agents"
 
 [workspace.dependencies]

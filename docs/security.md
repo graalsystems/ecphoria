@@ -156,17 +156,17 @@ deploying:
 
 ```bash
 # Signature — issuer is GitHub Actions, identity is this repo's release workflow.
-cosign verify ghcr.io/vargafoundation/ecphoria:<tag> \
-  --certificate-identity-regexp 'https://github.com/VargaFoundation/ecphoria/.github/workflows/release.yml@.*' \
+cosign verify ghcr.io/graalsystems/ecphoria:<tag> \
+  --certificate-identity-regexp 'https://github.com/graalsystems/ecphoria/.github/workflows/release.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # SBOM attestation.
-cosign verify-attestation --type spdxjson ghcr.io/vargafoundation/ecphoria:<tag> \
-  --certificate-identity-regexp 'https://github.com/VargaFoundation/ecphoria/.*' \
+cosign verify-attestation --type spdxjson ghcr.io/graalsystems/ecphoria:<tag> \
+  --certificate-identity-regexp 'https://github.com/graalsystems/ecphoria/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # Build provenance (SLSA).
-gh attestation verify oci://ghcr.io/vargafoundation/ecphoria:<tag> --repo VargaFoundation/ecphoria
+gh attestation verify oci://ghcr.io/graalsystems/ecphoria:<tag> --repo graalsystems/ecphoria
 ```
 
 CI also runs `cargo-audit` (RUSTSEC advisories) and `cargo-deny` (license/ban policy) on every build.

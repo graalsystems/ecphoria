@@ -22,7 +22,7 @@ jobs:
     # écrit deux fois par deux jobs qui s'ignorent.
     runs-on: ${{ matrix.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     env:
-      IMAGE: ghcr.io/vargafoundation/ecphoria
+      IMAGE: ghcr.io/graalsystems/ecphoria
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +84,7 @@ jobs:
     needs: docker
     runs-on: ubuntu-latest
     env:
-      IMAGE: ghcr.io/vargafoundation/ecphoria
+      IMAGE: ghcr.io/graalsystems/ecphoria
     strategy:
       fail-fast: false
       matrix:
@@ -190,7 +190,7 @@ jobs:
   operator-docker:
     name: Build & Push operator image
     env:
-      IMAGE: ghcr.io/vargafoundation/ecphoria-operator
+      IMAGE: ghcr.io/graalsystems/ecphoria-operator
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -332,5 +332,5 @@ jobs:
           fi
           npm publish --access public
 
-  # The Go SDK (module github.com/VargaFoundation/ecphoria/sdk/go) is pull-based: `go get` resolves it
+  # The Go SDK (module github.com/graalsystems/ecphoria/sdk/go) is pull-based: `go get` resolves it
   # from the pushed tag via the Go module proxy / pkg.go.dev — no publish step needed.
