@@ -12,8 +12,8 @@ use ecphoria_core::EcphoriaEngine;
 use crate::rest::models::*;
 
 use super::{
-    api_error, api_ok, cluster_write_error, memory_error, parse_as_of, scope_with_header,
-    TenantHeader,
+    api_error, api_ok, cluster_write_error, effective_tenant, memory_error, parse_as_of,
+    scope_with_header, TenantHeader,
 };
 
 /// `POST /api/v1/memories` — write a memory, or **propose** one with `?status=pending`.
@@ -494,6 +494,7 @@ pub async fn memory_list(
 pub async fn memory_get(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     Path(id): Path<String>,
 ) -> Response {
     metrics::counter!("ecphoria_rest_requests_total", "endpoint" => "memory_get").increment(1);
@@ -507,7 +508,7 @@ pub async fn memory_get(
             )
         }
     };
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
     let got = match tenant {
         Some(t) => engine.memory_get_scoped(uuid, &t).await,
         None => engine.memory_get(uuid).await,
@@ -527,6 +528,7 @@ pub async fn memory_get(
 pub async fn memory_delete(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     Path(id): Path<String>,
 ) -> Response {
     metrics::counter!("ecphoria_rest_requests_total", "endpoint" => "memory_delete").increment(1);
@@ -540,7 +542,7 @@ pub async fn memory_delete(
             )
         }
     };
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
     let outcome = match tenant {
         Some(t) => engine.memory_delete_scoped(uuid, &t).await,
         None => engine.memory_delete(uuid).await.map(|()| true),
@@ -564,6 +566,7 @@ pub async fn memory_delete(
 pub async fn memory_update(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     cluster: Option<
         Extension<std::sync::Arc<tokio::sync::RwLock<ecphoria_cluster::ClusterCoordinator>>>,
     >,
@@ -594,7 +597,7 @@ pub async fn memory_update(
             "provide at least one of content / importance / mem_type / metadata".into(),
         );
     }
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
 
     // Cluster mode: materialize the update on the leader, then replicate via the Raft log so every
     // node applies the identical row (never mutate off-leader). Followers replay MemoryUpsert.
@@ -679,6 +682,7 @@ pub async fn memory_history_by_subject(
 pub async fn memory_history(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     Path(id): Path<String>,
 ) -> Response {
     metrics::counter!("ecphoria_rest_requests_total", "endpoint" => "memory_history").increment(1);
@@ -692,7 +696,7 @@ pub async fn memory_history(
             )
         }
     };
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
     let fetched = match tenant {
         Some(t) => engine.memory_get_scoped(uuid, &t).await,
         None => engine.memory_get(uuid).await,
@@ -730,6 +734,7 @@ pub async fn memory_history(
 pub async fn memory_provenance(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     Path(id): Path<String>,
 ) -> Response {
     metrics::counter!("ecphoria_rest_requests_total", "endpoint" => "memory_provenance")
@@ -744,7 +749,7 @@ pub async fn memory_provenance(
             )
         }
     };
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
     match engine.memory_provenance(uuid, tenant.as_deref()).await {
         Ok(Some(prov)) => api_ok(serde_json::json!({
             "memory": prov.memory,
@@ -770,6 +775,7 @@ pub async fn memory_provenance(
 pub async fn memory_feedback(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     cluster: Option<
         Extension<std::sync::Arc<tokio::sync::RwLock<ecphoria_cluster::ClusterCoordinator>>>,
     >,
@@ -797,7 +803,7 @@ pub async fn memory_feedback(
             )
         }
     };
-    let tenant = auth.as_ref().and_then(|Extension(c)| c.tenant_id.clone());
+    let tenant = effective_tenant(&auth, &tenant_header);
 
     let (memory, action) = match engine
         .memory_feedback_plan(uuid, tenant.as_deref(), verdict)

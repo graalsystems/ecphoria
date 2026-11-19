@@ -316,6 +316,16 @@ A tenant-scoped token still wins — the header only chooses when the credential
 `POST /api/v1/admin/tenants { "name": "billing-api" }` confirms a tenant exists and that the
 credential may write to it, before any data is sent.
 
+The header also pins the tenant of **MCP** (`POST /mcp`): for every tool it is a hard scope that a
+`tenant_id` argument cannot override, so an orchestrator holding one admin key (`<token>@:admin`,
+no tenant) can give each caller exactly one project. The by-id operations — `GET`/`PATCH`/`DELETE
+/memories/{id}`, `/history`, `/provenance`, `/feedback` and the MCP tools `update_memory`,
+`delete_memory`, `memory_history`, `memory_provenance`, `memory_feedback` — act only when the
+memory belongs to that tenant; another tenant's id answers `404` / `memory not found`, never
+"forbidden", so its existence is not revealed. Without a tenant-bound credential or header, an MCP
+by-id call falls back to its own `tenant_id` argument; with neither, it is unscoped (single-tenant
+deployments). A key may also be bound to a tenant (`<token>@<tenant>:<role>`), which always wins.
+
 ### Provenance and feedback
 
 ```bash

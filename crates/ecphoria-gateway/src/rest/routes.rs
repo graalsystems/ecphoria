@@ -452,6 +452,10 @@ pub fn router_with_engine_and_auth(
         tracing::info!("LLM proxy disabled (gateway.llm_proxy_enabled = false)");
     }
     let mut protocol_routes = protocol_routes.with_state(engine);
+    // `X-Ecphoria-Tenant` pins the tenant of every MCP tool call (see `handle_mcp`), exactly as it
+    // does for REST: the orchestrator holds one key and states the project per request.
+    protocol_routes =
+        protocol_routes.layer(axum::middleware::from_fn(handlers::tenant_header_layer));
     // Response-cache mode for the proxy (exact-match by default; similarity is opt-in).
     #[cfg(feature = "llm-proxy")]
     {

@@ -19,6 +19,7 @@ use axum::{Extension, Json};
 use futures::stream::Stream;
 
 use crate::auth::middleware::AuthContext;
+use crate::rest::handlers::{effective_tenant, TenantHeader};
 use ecphoria_cluster::raft::types::{AppRequest, AppResponse};
 use ecphoria_cluster::ClusterCoordinator;
 use ecphoria_core::memory::cognition::{MemoryInput, MemoryScope};
@@ -87,18 +88,19 @@ pub async fn handle_mcp(
     State(engine): State<Arc<EcphoriaEngine>>,
     cluster: Option<Extension<Arc<RwLock<ClusterCoordinator>>>>,
     auth: Option<Extension<AuthContext>>,
+    tenant_header: Option<Extension<TenantHeader>>,
     Json(req): Json<McpRequest>,
 ) -> Response {
     let id = req.id.clone();
     let is_initialize = req.method == "initialize";
 
-    // Bind every tool call to the AUTHENTICATED tenant (from the Bearer token). A client can NOT
-    // widen its scope with a `tenant_id` argument — the token's tenant is authoritative. When auth
-    // is disabled (or a legacy bare key carries no tenant) this is `None` → unscoped/"default",
-    // matching the REST handlers' behaviour.
-    let tenant: Option<String> = auth
-        .as_ref()
-        .and_then(|Extension(ctx)| ctx.tenant_id.clone());
+    // Bind every tool call to ONE tenant, fixed by the transport and never by the model-supplied
+    // arguments. Precedence, strictest first: the credential's own tenant (a tenant-bound key or
+    // token), then the `X-Ecphoria-Tenant` header (lets a caller that holds a single admin key for
+    // several projects — an orchestrator — pin the tenant per request), else `None`
+    // (unscoped/"default", the legacy behaviour when auth is off or the key carries no tenant).
+    // When set, it is a HARD scope for every tool: a `tenant_id` argument cannot override it.
+    let tenant: Option<String> = effective_tenant(&auth, &tenant_header);
 
     let response = match req.method.as_str() {
         "initialize" => McpResponse::success(
@@ -212,6 +214,19 @@ fn scoped_for(args: &serde_json::Value, tenant: Option<&str>) -> MemoryScope {
         scope.tenant_id = t.to_string();
     }
     scope
+}
+
+/// Tenant a by-id tool (`memory_history`, `update_memory`, `delete_memory`, `memory_provenance`,
+/// `memory_feedback`) is confined to: the transport's tenant (credential or `X-Ecphoria-Tenant`),
+/// else the call's own `tenant_id` argument. A memory id is a global handle, so without a tenant it
+/// would act across tenants; a caller that names its tenant gets "memory not found" for an id that
+/// belongs to another one.
+fn by_id_tenant<'a>(args: &'a serde_json::Value, tenant: Option<&'a str>) -> Option<&'a str> {
+    tenant.or_else(|| {
+        args.get("tenant_id")
+            .and_then(|v| v.as_str())
+            .filter(|t| !t.is_empty())
+    })
 }
 
 /// Replicate a write through the Raft log via the leader. MCP isn't leader-forwarded, so a write
@@ -571,6 +586,7 @@ async fn call_tool(
         }
 
         "memory_history" => {
+            let tenant = by_id_tenant(args, tenant);
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -596,6 +612,7 @@ async fn call_tool(
         }
 
         "delete_memory" => {
+            let tenant = by_id_tenant(args, tenant);
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -621,10 +638,16 @@ async fn call_tool(
                 None => engine.memory_delete(uuid).await.map(|()| true),
             }
             .map_err(|e| e.to_string())?;
+            // Scoped: an id that is not this tenant's reads exactly like one that does not exist
+            // (and like the cluster branch above), so a caller cannot probe other tenants' ids.
+            if !deleted && tenant.is_some() {
+                return Err("memory not found".to_string());
+            }
             Ok(serde_json::json!({"id": id, "deleted": deleted}))
         }
 
         "update_memory" => {
+            let tenant = by_id_tenant(args, tenant);
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -789,6 +812,7 @@ async fn call_tool(
         }
 
         "memory_provenance" => {
+            let tenant = by_id_tenant(args, tenant);
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -809,6 +833,7 @@ async fn call_tool(
             .map_err(|e| e.to_string()),
 
         "memory_feedback" => {
+            let tenant = by_id_tenant(args, tenant);
             let id = args
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -914,7 +939,7 @@ mod tests {
             method: "initialize".into(),
             params: serde_json::json!({}),
         };
-        let resp = handle_mcp(State(engine().await), None, None, Json(req)).await;
+        let resp = handle_mcp(State(engine().await), None, None, None, Json(req)).await;
         assert!(resp.headers().get("Mcp-Session-Id").is_some());
     }
 
@@ -926,7 +951,7 @@ mod tests {
             method: "ping".into(),
             params: serde_json::json!({}),
         };
-        let resp = handle_mcp(State(engine().await), None, None, Json(req)).await;
+        let resp = handle_mcp(State(engine().await), None, None, None, Json(req)).await;
         assert!(resp.headers().get("Mcp-Session-Id").is_none());
     }
 
