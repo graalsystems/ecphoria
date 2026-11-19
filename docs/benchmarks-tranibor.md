@@ -1,4 +1,4 @@
-# The Choregos profile — service under a sustained mixed load
+# The Tranibor profile — service under a sustained mixed load
 
 [`benchmarks-kb.md`](./benchmarks-kb.md) measures retrieval *quality*: does the right document come
 back. This page measures *service*: what a request costs when 50 of them arrive every second against

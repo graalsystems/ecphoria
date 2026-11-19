@@ -21,7 +21,7 @@ image:
   # -- Image tag. Empty means the chart's appVersion, which is the version this chart was
   # released with — the image it was tested against. The previous default was `latest`, which
   # is a moving tag: it pins nothing, it is refused outright by admission policies that forbid
-  # mutable references (Choregos runs one), and it silently upgrades the server under a chart
+  # mutable references (Tranibor runs one), and it silently upgrades the server under a chart
   # that has not changed.
   tag: ""
   pullPolicy: IfNotPresent
@@ -56,7 +56,7 @@ config:
     # retrieval arm (default 2048). The service benchmark measured 540 ms p95 at 2048 and 24 ms at
     # 512 on a 20k-memory corpus, with no measurable recall cost *at that size* — and the default
     # is 2048 because a much larger corpus does lose recall when the window narrows. Measure with
-    # `kb_eval` on your own corpus before changing it. See docs/benchmarks-choregos.md.
+    # `kb_eval` on your own corpus before changing it. See docs/benchmarks-tranibor.md.
     cognition:
       retrievalScanCap: 0
       readPoolSize: 0

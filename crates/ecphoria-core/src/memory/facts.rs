@@ -46,7 +46,7 @@ impl FactValidation {
     }
 }
 
-/// The fact vocabulary. Mirrors the `MemoryKind` a Choregos fact carries, so a fact written by the
+/// The fact vocabulary. Mirrors the `MemoryKind` a Tranibor fact carries, so a fact written by the
 /// orchestrator and a fact written by hand are the same kind of thing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FactKind {
