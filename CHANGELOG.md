@@ -2,6 +2,12 @@
 
 All notable changes to Ecphoria will be documented in this file.
 
+## [0.2.7] - 2026-11-19
+
+### Security
+
+- Every by-id memory operation (update, delete, history, get, provenance, feedback) is confined to one tenant, over MCP and REST: `X-Ecphoria-Tenant` (or a tenant-bound key) pins the tenant, and another tenant's id answers "memory not found" (#51).
+
 ## [0.2.6] - 2026-11-18
 
 ### Bug Fixes
