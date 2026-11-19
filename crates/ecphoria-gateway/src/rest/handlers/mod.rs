@@ -1631,6 +1631,20 @@ pub async fn tenant_header_layer(
     next.run(req).await
 }
 
+/// The tenant a **by-id** operation (get / update / delete / history / provenance / feedback) is
+/// confined to: the credential's own tenant, else the `X-Ecphoria-Tenant` header, else `None`
+/// (legacy unscoped caller). A memory id is a global handle; without this a caller holding one
+/// admin key for many tenants could act on any tenant's memory by id. An id owned by another
+/// tenant reads as "not found" downstream, never as "forbidden", so existence does not leak.
+pub(crate) fn effective_tenant(
+    auth: &Option<Extension<crate::auth::middleware::AuthContext>>,
+    header: &Option<Extension<TenantHeader>>,
+) -> Option<String> {
+    auth.as_ref()
+        .and_then(|Extension(c)| c.tenant_id.clone())
+        .or_else(|| header.as_ref().map(|Extension(t)| t.0.clone()))
+}
+
 /// [`scope_from`] that also considers the `X-Ecphoria-Tenant` header.
 ///
 /// Precedence, strictest first: the token's own tenant (a security boundary — a scoped key must
