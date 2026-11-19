@@ -63,9 +63,19 @@ jobs:
         # `cargo bench` that never ran leaves an empty `bench-output.txt` and a green step, and
         # the failure surfaces two steps later as "No benchmark result was found" — which reads
         # like a problem with the comparison rather than with the command above it.
+        #
+        # Third thing: `target/criterion` must not survive from the build cache. `rust-cache`
+        # restores `target/`, so a Criterion data directory left by an earlier run — including a
+        # half-written one, since `cache-on-failure` saves after a failed run — comes back with
+        # a `base/` that has no `sample.json`. Criterion then prints `Failed to access file
+        # .../base/sample.json` on every `test ... ` line instead of the measurement, the
+        # parser below finds no result, and every later run fails the same way because the broken
+        # directory is cached again. The baseline that matters here is the JSON restored from the
+        # `main` cache below, not Criterion's own `target/criterion`, so start from none.
         shell: bash
         run: |
           set -o pipefail
+          rm -rf target/criterion
           cargo bench -p ecphoria-core --bench engine -- --output-format bencher | tee bench-output.txt
 
       # Read and write are split on purpose. `actions/cache` skips saving on an exact key hit,
