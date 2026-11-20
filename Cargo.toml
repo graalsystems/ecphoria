@@ -13,7 +13,7 @@ members = [
 exclude = ["bindings/python"]
 
 [workspace.package]
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
 rust-version = "1.82"
 license = "Apache-2.0"
@@ -63,7 +63,7 @@ rustls-pemfile = { version = "2" }
 # démarrage sur « Extension Autoloading Error … Dynamic loading not supported ». Les
 # images publiées n'auraient jamais démarré.
 duckdb = { version = "1", features = ["bundled", "json"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 
 # Vector search
 usearch = { version = "2" }
