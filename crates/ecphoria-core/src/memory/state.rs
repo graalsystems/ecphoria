@@ -147,7 +147,7 @@ impl StateStore {
                     agent_id: row.get(0)?,
                     key: row.get(1)?,
                     value: serde_json::from_str(&value_str).unwrap_or(serde_json::Value::Null),
-                    version: row.get(3)?,
+                    version: row.get::<_, i64>(3)? as u64,
                 })
             })
             .ok();
@@ -187,7 +187,7 @@ impl StateStore {
             .query_row(
                 "SELECT version FROM state WHERE agent_id = ?1 AND key = ?2",
                 rusqlite::params![agent_id, key],
-                |row| row.get(0),
+                |row| row.get::<_, i64>(0).map(|v| v as u64),
             )
             .map_err(|e| crate::Error::State(e.to_string()))?;
 
@@ -242,7 +242,7 @@ impl StateStore {
             .query_row(
                 "SELECT version FROM state WHERE agent_id = ?1 AND key = ?2",
                 rusqlite::params![agent_id, key],
-                |row| row.get(0),
+                |row| row.get::<_, i64>(0).map(|v| v as u64),
             )
             .map_err(|e| crate::Error::State(e.to_string()))?;
 
@@ -384,7 +384,7 @@ impl StateStore {
             .execute(
                 "UPDATE state SET value = ?1, version = version + 1, updated_at = datetime('now')
                  WHERE agent_id = ?2 AND key = ?3 AND version = ?4",
-                rusqlite::params![value_str, agent_id, key, expected_version],
+                rusqlite::params![value_str, agent_id, key, expected_version as i64],
             )
             .map_err(|e| crate::Error::State(e.to_string()))?;
 
