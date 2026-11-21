@@ -114,7 +114,7 @@ jobs:
           key: bench-${{ runner.os }}-main-${{ github.sha }}
 
   profile:
-    name: Choregos profile (service under load)
+    name: Tranibor profile (service under load)
     # Explicitly the schedule and manual runs, not "anything that is not a pull request":
     # adding the `push` trigger for the Criterion baseline would otherwise have signed this
     # slow job up for every commit on `main` as a side effect.

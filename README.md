@@ -326,13 +326,13 @@ Ecphoria automatically:
 - [Agentic platform](docs/agentic-platform.md) — runs, agent loop, HITL, workflows, triggers, tools
 - [Typed facts](docs/facts.md) — the fact vocabulary, the subject grammar that makes supersession work, and per-tenant governance
 - [Editions](docs/editions.md) — `ecphoria:memory` vs `ecphoria:full`, and why the split is a build choice
-- [Choregos integration](docs/integrations/choregos.md) — context packs, fact writes, governed proposals
+- [Tranibor integration](docs/integrations/tranibor.md) — context packs, fact writes, governed proposals
 - [Releasing](docs/releasing.md) — what a release produces, how to cut one, how to verify a signed image
 - [Backup & restore](docs/backup-restore.md) — what a backup contains, how to restore it, and the drill
 - [Migrate from Mem0](docs/migrate-from-mem0.md) — 1:1 mapping + what Ecphoria adds for free
 - [LoCoMo benchmarks](docs/benchmarks-locomo.md) — reproducible eval recipe + measured baseline
 - [KB benchmarks](docs/benchmarks-kb.md) — retrieval on an engineering corpus, measured to 200k memories
-- [Service benchmarks](docs/benchmarks-choregos.md) — latency under a sustained mixed load, and what losing a node costs
+- [Service benchmarks](docs/benchmarks-tranibor.md) — latency under a sustained mixed load, and what losing a node costs
 - [Web Explorer](examples/web-ui/) — single-file UI for SQL, memory search, and run traces
 
 ## Full Dev Stack

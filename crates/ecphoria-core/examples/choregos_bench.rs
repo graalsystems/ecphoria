@@ -1,8 +1,8 @@
-//! The Choregos profile: does Ecphoria hold up as the memory behind an orchestrator?
+//! The Tranibor profile: does Ecphoria hold up as the memory behind an orchestrator?
 //!
 //! `kb_eval` measures retrieval *quality*; this measures *service* — latency under a sustained,
 //! mixed load on a corpus the size of a real engineering estate. The shape is taken from how
-//! Choregos actually uses the store:
+//! Tranibor actually uses the store:
 //!
 //! - **20 000 typed facts** — decisions, conventions, incidents, ticket summaries, run lessons,
 //!   flaky tests, hotspots, findings — with the subject grammar and the `paths` metadata a context
@@ -26,7 +26,7 @@
 //! Env: `BENCH_FACTS` (20000), `BENCH_EVENTS` (200000), `BENCH_SECONDS` (60), `BENCH_READS_PER_SEC`
 //! (50), `BENCH_WRITES_PER_SEC` (5), `BENCH_DIR` (a temp dir by default), `BENCH_P95_MS` (fail the
 //! run if read p95 exceeds this — the CI gate), `BENCH_SCAN_CAP` and `BENCH_READ_POOL` (the two
-//! knobs that move read latency — see docs/benchmarks-choregos.md).
+//! knobs that move read latency — see docs/benchmarks-tranibor.md).
 //!
 //! Embeddings are off by default: the point is to measure Ecphoria, and with a provider configured
 //! the numbers are mostly that provider's HTTP latency. Set `ECPHORIA_EMBEDDING__PROVIDER` to
@@ -283,7 +283,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.memory.cognition.read_pool_size =
         env_usize("BENCH_READ_POOL", config.memory.cognition.read_pool_size);
 
-    println!("Choregos profile — {facts} facts, {events} events, {reads_per_sec} r/s + {writes_per_sec} w/s for {seconds}s");
+    println!("Tranibor profile — {facts} facts, {events} events, {reads_per_sec} r/s + {writes_per_sec} w/s for {seconds}s");
     println!("data dir: {dir}");
     if config.embedding.provider != "none" && std::env::var("ECPHORIA_EMBEDDING__PROVIDER").is_err()
     {

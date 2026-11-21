@@ -27,8 +27,8 @@ clippy: guard ; cargo clippy --workspace --all-targets -- -D warnings
 bench-smoke: guard ; CONVS=1 QA_LIMIT=5 EXTRACTION=none bash ops/bench/run-locomo-claude.sh
 bench:       guard ; bash ops/bench/run-locomo-claude.sh
 
-## The Choregos profile: 20k typed facts + 200k events, 50 reads/s + 5 writes/s sustained.
-## Measures service, not retrieval quality. See docs/benchmarks-choregos.md.
+## The Tranibor profile: 20k typed facts + 200k events, 50 reads/s + 5 writes/s sustained.
+## Measures service, not retrieval quality. See docs/benchmarks-tranibor.md.
 bench-choregos: guard ; cargo run --release -p ecphoria-core --example choregos_bench
 ## What losing a node costs under load: brings up a local 3-node cluster, drives it, kills the
 ## leader partway through, prints a per-second timeline.

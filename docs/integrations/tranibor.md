@@ -1,10 +1,10 @@
-# Choregos
+# Tranibor
 
-[Choregos](https://github.com/graalsystems/tranibor) is an orchestrator: it plans work, runs
+[Tranibor](https://github.com/graalsystems/tranibor) is an orchestrator: it plans work, runs
 coding agents against a repository, gates what they produce and files the result in a tracker.
 Ecphoria is where it keeps what it learned.
 
-The division is deliberate. Choregos owns the *workflow* — what to do next, who may approve it, what
+The division is deliberate. Tranibor owns the *workflow* — what to do next, who may approve it, what
 a run costs. Ecphoria owns the *corpus* — what is true, since when, and on whose authority. Neither
 tries to be the other, and the seam between them is four endpoints.
 
@@ -59,16 +59,16 @@ Three things make this usable by a planner rather than by a human:
   best, and `truncated` says whether anything was dropped. A pack that is 5 % under budget is
   harmless; one that overflows the prompt is not.
 
-A failure should give an agent *less* context, never an error: on the Choregos side the call is
+A failure should give an agent *less* context, never an error: on the Tranibor side the call is
 wrapped in a timeout and a circuit breaker, and any failure returns an **empty pack**. The task then
 runs on the repository alone, which is how it worked before there was a memory at all.
 
 ## After a task: facts
 
-What a run learned is written as a [typed fact](../facts.md). Choregos' `MemoryKind` and Ecphoria's
+What a run learned is written as a [typed fact](../facts.md). Tranibor's `MemoryKind` and Ecphoria's
 `FactKind` are the same vocabulary, on purpose:
 
-| Choregos writes | Subject | When |
+| Tranibor writes | Subject | When |
 | :-- | :-- | :-- |
 | `decision` | `decision:<area>:<slug>` | an ADR is merged |
 | `convention` | `convention:<area>:<slug>` | a rule is added to the review policy |
@@ -79,7 +79,7 @@ What a run learned is written as a [typed fact](../facts.md). Choregos' `MemoryK
 | `hotspot` | `hotspot:<path>` | the churn/defect analysis runs |
 | `finding` | `finding:<tool>:<rule>` | findings triage accepts one |
 
-`kind`, `paths` and `provenance` travel in `metadata` — they are Choregos notions, and that is where
+`kind`, `paths` and `provenance` travel in `metadata` — they are Tranibor notions, and that is where
 the context pack reads them back to filter by type and by allowed path. Sending them at the root
 loses them silently.
 
@@ -114,7 +114,7 @@ PUT /api/v1/memories/by-external-id
 
 The pair maps to a stable subject, so unchanged content *confirms* the existing memory (importance
 and version go up, nothing is duplicated) and changed content *supersedes* it — the same cognition
-as any other write, with no duplicate row. Choregos uses this for everything that has an id in
+as any other write, with no duplicate row. Tranibor uses this for everything that has an id in
 another system; `POST /memories` only for facts it derives itself.
 
 ## Governed writes: an agent may propose, a human decides
@@ -152,6 +152,9 @@ empty `provenance: {}` — what a client sends when it has nothing — does not 
 orchestrator fills it: `{"source": "choregos", "run_id": …, "work_item_key": …}` is enough, and it
 is what makes a fact checkable six months later.
 
+The tenant id and the `source` value above are identifiers, not branding: they keep the `choregos`
+spelling the platform used before it was renamed Tranibor, and stay whatever your installation sends.
+
 Start at `fact_validation = "warn"`, watch `ecphoria_fact_validation_failures_total`, then switch to
 `strict` once the writers are clean.
 
@@ -165,14 +168,14 @@ See [connect-claude.md](../connect-claude.md).
 
 Two ways to wire it, and they are not equivalent:
 
-- **Through the orchestrator** — Choregos calls the REST endpoints above and hands the agent a
+- **Through the orchestrator** — Tranibor calls the REST endpoints above and hands the agent a
   prepared pack. The agent cannot write, cannot widen its own context, and the run is reproducible.
 - **Directly to the agent** — the agent holds an MCP connection and searches as it goes. More
   capable, less reproducible; if you do this, give it a token that may only *propose*.
 
 ## Tenancy
 
-One tenant per Choregos installation, one `project` per repository. `project` is a filter inside a
+One tenant per Tranibor installation, one `project` per repository. `project` is a filter inside a
 scope, not a scope of its own: a query can narrow to one repository *or* span them all with a single
 ranking. Putting the repository in the scope tuple instead would isolate repositories from each
 other and make cross-repository search impossible, which is the opposite of what an orchestrator
@@ -185,7 +188,7 @@ still wins over the header.
 
 | | |
 | :-- | :-- |
-| **Edition** | `ecphoria:memory` is the right image here — Choregos owns the workflow and runs the agents, so the agent runtime and the LLM proxy are surface it does not use. See [editions.md](../editions.md). |
+| **Edition** | `ecphoria:memory` is the right image here — Tranibor owns the workflow and runs the agents, so the agent runtime and the LLM proxy are surface it does not use. See [editions.md](../editions.md). |
 | **Failure** | Every Ecphoria call is optional by construction. An unreachable memory yields an empty pack and a dropped fact write to retry, never a failed run. |
-| **Cost** | Choregos measures model cost at its own gateway, not here. Ecphoria's embedding calls are its own and are configured in `[embedding]`. |
+| **Cost** | Tranibor measures model cost at its own gateway, not here. Ecphoria's embedding calls are its own and are configured in `[embedding]`. |
 | **Backfill** | `ecphoria import --from git` for documents (valid-time = the file's last commit date) and `--from github` for closed issues/PRs, keyed on the same subject scheme as webhook promotion so backfill and live events converge on one record per ticket. |
