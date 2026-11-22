@@ -123,7 +123,7 @@ A coding agent is a plausible source of facts and a poor judge of them. Ecphoria
 
 ```bash
 POST /api/v1/memories?status=pending     # the agent proposes
-GET  /api/v1/pending                     # the review queue, oldest first
+GET  /api/v1/pending?limit=N&cursor=…   # the review queue, oldest first, keyset-paged (next_cursor / has_more)
 POST /api/v1/pending/{id}/accept         # …runs the normal cognition path
 POST /api/v1/pending/{id}/reject         # …keeps the row, expired, with the judgement
 ```

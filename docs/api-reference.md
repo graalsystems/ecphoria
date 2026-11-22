@@ -278,7 +278,7 @@ bookkeeping.
 
 ```bash
 POST /api/v1/memories?status=pending      # → { "id": "...", "status": "pending" }
-GET  /api/v1/pending                      # → { "items": [...], "count": N }
+GET  /api/v1/pending?limit=N&cursor=...   # → { "items": [...], "count": N, "next_cursor": "..."|null, "has_more": bool }
 POST /api/v1/pending/{id}/accept
 POST /api/v1/pending/{id}/reject
 ```

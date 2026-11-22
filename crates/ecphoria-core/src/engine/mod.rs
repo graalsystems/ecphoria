@@ -2872,8 +2872,20 @@ impl EcphoriaEngine {
 
     /// The review queue for a scope: proposals waiting for a decision, oldest first.
     pub async fn memory_pending(&self, scope: &MemoryScope, limit: usize) -> Result<Vec<Memory>> {
+        Ok(self.memory_pending_page(scope, limit, None).await?.items)
+    }
+
+    /// One keyset page of the review queue (`created_at ASC, id ASC`), after `cursor` if given.
+    pub async fn memory_pending_page(
+        &self,
+        scope: &MemoryScope,
+        limit: usize,
+        cursor: Option<&crate::memory::cognition::PendingCursor>,
+    ) -> Result<crate::memory::cognition::PendingPage> {
         let limit = limit.min(self.config.query.max_rows);
-        self.memory_store.list_pending(scope, limit).await
+        self.memory_store
+            .list_pending_page(scope, limit, cursor)
+            .await
     }
 
     /// Accept a proposal: it goes through the **normal** cognition path, so it supersedes what it

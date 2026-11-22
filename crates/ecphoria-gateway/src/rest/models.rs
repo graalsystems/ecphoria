@@ -274,6 +274,9 @@ pub struct MemoryAddParams {
 pub struct PendingListParams {
     #[serde(default = "default_pending_limit")]
     pub limit: usize,
+    /// Opaque `next_cursor` of the previous page; absent = first page.
+    #[serde(default)]
+    pub cursor: Option<String>,
     #[serde(default)]
     pub tenant_id: Option<String>,
     #[serde(default)]

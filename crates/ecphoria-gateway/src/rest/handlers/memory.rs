@@ -1281,7 +1281,7 @@ pub async fn memory_propose(
     }
 }
 
-/// The review queue — `GET /api/v1/pending`.
+/// The review queue — `GET /api/v1/pending?limit=N&cursor=<opaque>`, oldest first, keyset-paged.
 pub async fn pending_list(
     State(engine): State<Arc<EcphoriaEngine>>,
     auth: Option<Extension<crate::auth::middleware::AuthContext>>,
@@ -1298,8 +1298,29 @@ pub async fn pending_list(
         params.agent_id.as_deref(),
         params.session_id.as_deref(),
     );
-    match engine.memory_pending(&scope, params.limit).await {
-        Ok(items) => api_ok(serde_json::json!({ "items": items, "count": items.len() })),
+    let cursor = match params.cursor.as_deref() {
+        None => None,
+        Some(raw) => match ecphoria_core::memory::cognition::PendingCursor::decode(raw) {
+            Some(c) => Some(c),
+            None => {
+                return api_error(
+                    StatusCode::BAD_REQUEST,
+                    "INVALID_CURSOR",
+                    "cursor is not a value returned by this endpoint as `next_cursor`".into(),
+                )
+            }
+        },
+    };
+    match engine
+        .memory_pending_page(&scope, params.limit, cursor.as_ref())
+        .await
+    {
+        Ok(page) => api_ok(serde_json::json!({
+            "items": page.items,
+            "count": page.items.len(),
+            "next_cursor": page.next_cursor,
+            "has_more": page.has_more,
+        })),
         Err(e) => memory_error(e),
     }
 }
