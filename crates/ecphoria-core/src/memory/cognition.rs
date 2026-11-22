@@ -81,6 +81,63 @@ impl MemoryScope {
     }
 }
 
+/// One page of the review queue — see [`MemoryStore::list_pending_page`].
+#[derive(Debug, Clone)]
+pub struct PendingPage {
+    pub items: Vec<Memory>,
+    /// Opaque; `Some` exactly when `has_more`.
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+/// Keyset position in the review queue: the `(created_at, id)` of the last row returned.
+///
+/// Wire form is urlsafe base64 (no padding) of `<unix micros>.<uuid>`. Microseconds because that
+/// is what DuckDB stores, so the value survives the round trip exactly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingCursor {
+    created_at_micros: i64,
+    id: Uuid,
+}
+
+impl PendingCursor {
+    fn of(m: &Memory) -> Self {
+        Self {
+            created_at_micros: m.created_at.timestamp_micros(),
+            id: m.id,
+        }
+    }
+
+    pub fn encode(&self) -> String {
+        use base64::Engine as _;
+        base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(format!("{}.{}", self.created_at_micros, self.id))
+    }
+
+    /// `None` for anything that is not a cursor this server minted.
+    pub fn decode(s: &str) -> Option<Self> {
+        use base64::Engine as _;
+        let raw = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(s.as_bytes())
+            .ok()?;
+        let raw = String::from_utf8(raw).ok()?;
+        let (micros, id) = raw.split_once('.')?;
+        let created_at_micros = micros.parse::<i64>().ok()?;
+        // Reject values chrono cannot represent rather than binding garbage into SQL.
+        DateTime::<Utc>::from_timestamp_micros(created_at_micros)?;
+        Some(Self {
+            created_at_micros,
+            id: Uuid::parse_str(id).ok()?,
+        })
+    }
+
+    fn created_at_param(&self) -> String {
+        DateTime::<Utc>::from_timestamp_micros(self.created_at_micros)
+            .unwrap_or_default()
+            .to_rfc3339_opts(chrono::SecondsFormat::Micros, true)
+    }
+}
+
 /// Lifecycle state of a memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -1439,15 +1496,47 @@ impl MemoryStore {
         scope: &MemoryScope,
         limit: usize,
     ) -> crate::Result<Vec<Memory>> {
-        let (where_sql, params) = scope.where_clause();
+        Ok(self.list_pending_page(scope, limit, None).await?.items)
+    }
+
+    /// One page of the review queue, ordered `created_at ASC, id ASC` (the id breaks ties so rows
+    /// sharing a timestamp keep a total order), starting strictly after `after`.
+    ///
+    /// Fetches `limit + 1` rows to learn whether another page exists without a `COUNT(*)`. The
+    /// cursor values are bound as parameters, never interpolated.
+    pub async fn list_pending_page(
+        &self,
+        scope: &MemoryScope,
+        limit: usize,
+        after: Option<&PendingCursor>,
+    ) -> crate::Result<PendingPage> {
+        let limit = limit.clamp(1, 10_000);
+        let (mut where_sql, mut params) = scope.where_clause();
+        if let Some(c) = after {
+            where_sql.push_str(" AND (created_at, id) > (CAST(? AS TIMESTAMPTZ), ?)");
+            params.push(c.created_at_param());
+            params.push(c.id.to_string());
+        }
         let sql = format!(
             "SELECT {} FROM memories WHERE {} AND state = 'pending' \
-             ORDER BY created_at ASC LIMIT {}",
+             ORDER BY created_at ASC, id ASC LIMIT {}",
             Self::SELECT_COLS,
             where_sql,
-            limit.clamp(1, 10_000)
+            limit + 1
         );
-        self.query_memories(&sql, &params)
+        let mut items = self.query_memories(&sql, &params)?;
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        let next_cursor = if has_more {
+            items.last().map(|m| PendingCursor::of(m).encode())
+        } else {
+            None
+        };
+        Ok(PendingPage {
+            items,
+            next_cursor,
+            has_more,
+        })
     }
 
     /// Active memories in a scope, most important / most recent first.
@@ -2689,6 +2778,69 @@ mod tests {
         assert!(t.contains(&("Sam".into(), "married_to".into(), "Jo".into())));
         // No verb → no triple.
         assert!(extract_triples("a quiet morning").is_empty());
+    }
+
+    #[tokio::test]
+    async fn pending_pages_walk_each_row_once_in_order_with_shared_timestamps() {
+        let store = MemoryStore::new();
+        // DuckDB stores microseconds; truncate so the expectation matches what comes back.
+        let t0 = DateTime::<Utc>::from_timestamp_micros(
+            (Utc::now() - chrono::Duration::hours(1)).timestamp_micros(),
+        )
+        .unwrap();
+        let mut expected = Vec::new();
+        // 11 proposals; groups of 3 share one created_at, so the id tiebreak decides the order.
+        for i in 0..11i64 {
+            let mut m = Memory::new(scope(), format!("proposal {i}"));
+            m.state = MemoryState::Pending;
+            m.created_at = t0 + chrono::Duration::seconds(i / 3);
+            expected.push((m.created_at, m.id));
+            store.upsert_raw(&m, None).await.unwrap();
+        }
+        // Noise that must never show up: an active row and another scope's proposal.
+        let active = Memory::new(scope(), "active");
+        store.upsert_raw(&active, None).await.unwrap();
+        let mut other = Memory::new(MemoryScope::user("bob"), "bob's");
+        other.state = MemoryState::Pending;
+        store.upsert_raw(&other, None).await.unwrap();
+        expected.sort();
+
+        for page_size in [1usize, 2, 4, 11, 50] {
+            let mut seen = Vec::new();
+            let mut cursor: Option<PendingCursor> = None;
+            let mut pages = 0;
+            loop {
+                let page = store
+                    .list_pending_page(&scope(), page_size, cursor.as_ref())
+                    .await
+                    .unwrap();
+                assert!(page.items.len() <= page_size);
+                assert_eq!(page.has_more, page.next_cursor.is_some());
+                seen.extend(page.items.iter().map(|m| (m.created_at, m.id)));
+                pages += 1;
+                assert!(pages <= 20, "walk did not terminate");
+                match page.next_cursor {
+                    Some(c) => cursor = Some(PendingCursor::decode(&c).unwrap()),
+                    None => break,
+                }
+            }
+            assert_eq!(seen, expected, "page_size {page_size}");
+        }
+        // An exact multiple of the page size ends with has_more=false, not an empty extra page.
+        let last = store.list_pending_page(&scope(), 11, None).await.unwrap();
+        assert!(!last.has_more && last.next_cursor.is_none());
+    }
+
+    #[test]
+    fn pending_cursor_round_trips_and_rejects_garbage() {
+        let c = PendingCursor {
+            created_at_micros: 1_700_000_000_123_456,
+            id: Uuid::new_v4(),
+        };
+        assert_eq!(PendingCursor::decode(&c.encode()), Some(c));
+        for bad in ["", "!!!", "bm90LWEtY3Vyc29y", "MTIzLm5vdC1hLXV1aWQ"] {
+            assert!(PendingCursor::decode(bad).is_none(), "{bad}");
+        }
     }
 
     #[tokio::test]

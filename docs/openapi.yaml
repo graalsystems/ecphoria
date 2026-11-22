@@ -262,11 +262,14 @@ paths:
     get:
       summary: The review queue — proposals waiting for a decision, oldest first
       parameters:
-        - { name: limit, in: query, schema: { type: integer, default: 100 } }
+        - { name: limit, in: query, schema: { type: integer, default: 100 }, description: 'Page size (capped at query.max_rows)' }
+        - { name: cursor, in: query, schema: { type: string }, description: 'Opaque `next_cursor` of the previous page; absent = first page' }
         - { name: user_id, in: query, schema: { type: string } }
         - { name: agent_id, in: query, schema: { type: string } }
         - { name: session_id, in: query, schema: { type: string } }
-      responses: { '200': { description: '{ items: [Memory], count: N }' } }
+      responses:
+        '200': { description: '{ items: [Memory], count: N (items on this page), next_cursor: string|null, has_more: bool } - ordered created_at, id ascending' }
+        '400': { description: 'INVALID_CURSOR - cursor is not a value this endpoint returned' }
   /api/v1/pending/{id}/accept:
     post:
       summary: Accept a proposal — it goes through the normal cognition path

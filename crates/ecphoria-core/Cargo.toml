@@ -65,6 +65,7 @@ tracing.workspace = true
 metrics.workspace = true
 
 uuid.workspace = true
+base64.workspace = true
 chrono.workspace = true
 bytes.workspace = true
 parking_lot.workspace = true

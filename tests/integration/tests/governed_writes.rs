@@ -433,3 +433,70 @@ async fn the_tenant_header_isolates_two_projects_on_one_key() {
         .unwrap()
         .contains("postgres"));
 }
+
+#[tokio::test]
+async fn pending_queue_pages_with_a_cursor() {
+    let (app, _data) = app().await;
+    let mut ids = Vec::new();
+    for i in 0..5 {
+        let (_, p) = call(
+            &app,
+            "POST",
+            "/api/v1/memories?status=pending",
+            &format!(r#"{{"content": "proposal number {i}"}}"#),
+        )
+        .await;
+        ids.push(p["id"].as_str().unwrap().to_string());
+    }
+
+    // No cursor: today's first page, now with the paging fields.
+    let (status, first) = call(&app, "GET", "/api/v1/pending?limit=2", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(first["count"], 2);
+    assert_eq!(first["has_more"], true);
+    assert!(first["next_cursor"].is_string());
+
+    let mut seen: Vec<String> = Vec::new();
+    let mut page = first;
+    loop {
+        for it in page["items"].as_array().unwrap() {
+            seen.push(it["id"].as_str().unwrap().to_string());
+        }
+        if page["has_more"] == false {
+            assert!(page["next_cursor"].is_null());
+            break;
+        }
+        let cursor = page["next_cursor"].as_str().unwrap().to_string();
+        let (status, next) = call(
+            &app,
+            "GET",
+            &format!("/api/v1/pending?limit=2&cursor={cursor}"),
+            "",
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        page = next;
+    }
+    assert_eq!(seen.len(), 5);
+    let mut a = seen.clone();
+    let mut b = ids.clone();
+    a.sort();
+    b.sort();
+    assert_eq!(a, b, "every proposal exactly once");
+
+    // A queue that fits in one page: has_more false, next_cursor null.
+    let (_, all) = call(&app, "GET", "/api/v1/pending", "").await;
+    assert_eq!(all["count"], 5);
+    assert_eq!(all["has_more"], false);
+    assert!(all["next_cursor"].is_null());
+}
+
+#[tokio::test]
+async fn pending_queue_rejects_a_malformed_cursor() {
+    let (app, _data) = app().await;
+    for bad in ["not-a-cursor", "bm90LWEtY3Vyc29y"] {
+        let (status, body) = call(&app, "GET", &format!("/api/v1/pending?cursor={bad}"), "").await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+        assert_eq!(body["error"]["code"], "INVALID_CURSOR");
+    }
+}
