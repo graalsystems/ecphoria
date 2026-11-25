@@ -2,6 +2,16 @@
 
 All notable changes to Ecphoria will be documented in this file.
 
+## [0.2.8] - 2026-11-25
+
+### Security
+
+- The RUSTSEC audit is green again: `cookie` 0.18.3 (RUSTSEC-2026-0594) and `url` 2.5.9 (RUSTSEC-2026-0592) are patched, unsound and yanked crates move to fixed releases, and the unmaintained `pin-utils` and `rustls-pemfile` leave the tree (PG-wire TLS reads PEM through `rustls-pki-types`). `chrono` and `paste`, unmaintained with no replacement yet, are listed in `.cargo/audit.toml` with the reason and what ends them (#58).
+
+### Features
+
+- *(admin)* `/admin/reindex` is paged: a keyset cursor over `(ts, id)` walks the whole unembedded backlog, steps over events the provider keeps refusing, and hands back `next_cursor` before the request timeout. `ecphoria reindex [--page-size N]` follows it to the end, and the background loop resumes where it stopped (#58).
+
 ## [0.2.7] - 2026-11-19
 
 ### Security
