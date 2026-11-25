@@ -47,6 +47,7 @@ LLM proxy) into calls on `ecphoria_core::EcphoriaEngine`. Also handles authentic
 | POST | `/api/v1/admin/retention` | enforce retention | Yes* | **Working** |
 | GET/PUT | `/api/v1/admin/retention/policies` | CRUD retention policies | Yes* | **Working** |
 | POST | `/api/v1/admin/backup` | trigger backup | Yes* | **Working** |
+| POST | `/api/v1/admin/reindex` | re-embed unembedded events + rebuild FTS; **paged** (`{"cursor","page_size"}` → `next_cursor`/`complete`, ~15 s per call) | Yes* | **Working** |
 | DELETE | `/api/v1/admin/tenants/{tenant_id}` | GDPR erasure (all stores) | Yes* (admin) | **Working** |
 | DELETE | `/api/v1/admin/users/{user_id}` | GDPR erasure by user (memories + vectors, tenant from token) | Yes* (admin) | **Working** |
 | GET | `/api/v1/memories/{id}/provenance` | memory → source events + supersession chain | Yes* | **Working** |

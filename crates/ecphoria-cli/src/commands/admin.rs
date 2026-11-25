@@ -248,12 +248,57 @@ fn urlencode(s: &str) -> String {
     out
 }
 
-pub async fn reindex(url: &str) -> anyhow::Result<()> {
+/// Walk the unembedded backlog: each call re-embeds pages for a bounded time and hands back a
+/// cursor, which is posted again until the server reports the walk complete.
+pub async fn reindex(url: &str, page_size: Option<usize>) -> anyhow::Result<()> {
     let c = EcphoriaClient::new(url);
-    show(
-        &c.post_json("/api/v1/admin/reindex", serde_json::json!({}))
-            .await?,
-    )
+    let mut cursor: Option<String> = None;
+    let (mut reindexed, mut scanned) = (0u64, 0u64);
+    loop {
+        let mut body = serde_json::json!({});
+        if let Some(n) = page_size {
+            body["page_size"] = n.into();
+        }
+        if let Some(c) = &cursor {
+            body["cursor"] = c.clone().into();
+        }
+        let res = c.post_json("/api/v1/admin/reindex", body).await?;
+        if res.get("error").is_some() {
+            show(&res)?;
+            anyhow::bail!("reindex failed");
+        }
+        reindexed += res["reindexed"].as_u64().unwrap_or(0);
+        scanned += res["scanned"].as_u64().unwrap_or(0);
+        match reindex_next_cursor(&res) {
+            Some(next) => {
+                eprintln!(
+                    "reindexed {reindexed} of {scanned} scanned, {} pending — continuing",
+                    res["pending"]
+                );
+                cursor = Some(next);
+            }
+            None => {
+                if cursor.is_none() {
+                    return show(&res);
+                }
+                // Several calls: the last answer alone would under-report the walk.
+                let mut summary = res;
+                summary["reindexed"] = reindexed.into();
+                summary["scanned"] = scanned.into();
+                return show(&summary);
+            }
+        }
+    }
+}
+
+/// The cursor to resume a reindex walk with, if the server says there is more. A cluster-wide
+/// answer (`"cluster": true`, one result per shard) has no single cursor: each shard walks its
+/// own backlog, so it is shown as is.
+fn reindex_next_cursor(res: &serde_json::Value) -> Option<String> {
+    if res.get("cluster").is_some() {
+        return None;
+    }
+    res.get("next_cursor")?.as_str().map(str::to_string)
 }
 
 pub async fn rebalance(url: &str, tenant: &str, target_shard: usize) -> anyhow::Result<()> {
@@ -274,5 +319,25 @@ mod tests {
         assert_eq!(super::urlencode("Alice Smith"), "Alice%20Smith");
         assert_eq!(super::urlencode("a/b?c&d"), "a%2Fb%3Fc%26d");
         assert_eq!(super::urlencode("safe-.~_0"), "safe-.~_0");
+    }
+}
+
+#[cfg(test)]
+mod reindex_tests {
+    use super::reindex_next_cursor;
+
+    #[test]
+    fn reindex_continues_only_on_a_single_node_cursor() {
+        let more = serde_json::json!({ "complete": false, "next_cursor": "17:abc" });
+        assert_eq!(reindex_next_cursor(&more).as_deref(), Some("17:abc"));
+        let done = serde_json::json!({ "complete": true, "next_cursor": null });
+        assert_eq!(reindex_next_cursor(&done), None);
+        // Older servers answer without a cursor: one call, as before.
+        assert_eq!(
+            reindex_next_cursor(&serde_json::json!({ "reindexed": 3 })),
+            None
+        );
+        let cluster = serde_json::json!({ "cluster": true, "shards": [] });
+        assert_eq!(reindex_next_cursor(&cluster), None);
     }
 }

@@ -714,3 +714,100 @@ mod publish_tests {
         assert_eq!(html.status(), StatusCode::OK);
     }
 }
+
+#[cfg(test)]
+mod reindex_tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request as HttpRequest, StatusCode};
+    use tower::ServiceExt;
+
+    async fn engine_with_events(n: usize) -> Arc<EcphoriaEngine> {
+        let mut c = ecphoria_core::CoreConfig::default();
+        c.memory.episodic.db_path = ":memory:".into();
+        c.memory.state.db_path = ":memory:".into();
+        c.memory.cognition.db_path = ":memory:".into();
+        c.runtime.db_path = ":memory:".into();
+        let engine = Arc::new(EcphoriaEngine::new(c).await.unwrap());
+        let events = (0..n)
+            .map(|i| {
+                ecphoria_core::memory::episodic::Event::new("s", "e", serde_json::json!({ "i": i }))
+            })
+            .collect();
+        engine.ingest(events).await.unwrap();
+        engine
+    }
+
+    async fn post(app: &Router, body: Body) -> (StatusCode, serde_json::Value) {
+        let resp = app
+            .clone()
+            .oneshot(
+                HttpRequest::builder()
+                    .method("POST")
+                    .uri("/api/v1/admin/reindex")
+                    .header("content-type", "application/json")
+                    .body(body)
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = resp.status();
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+            .await
+            .unwrap();
+        (status, serde_json::from_slice(&bytes).unwrap())
+    }
+
+    /// A body-less call (older clients, the cluster scatter) walks the whole backlog and says so.
+    #[tokio::test]
+    async fn reindex_without_a_body_walks_to_the_end() {
+        let app = router_with_engine(engine_with_events(3).await);
+        let (status, v) = post(&app, Body::empty()).await;
+        assert_eq!(status, StatusCode::OK, "{v}");
+        assert_eq!(v["scanned"], 3);
+        assert_eq!(v["complete"], true);
+        assert!(v["next_cursor"].is_null());
+        assert!(
+            v.get("lexical_indexed").is_some(),
+            "a walk's first call rebuilds FTS"
+        );
+    }
+
+    /// The cursor resumes where the previous call stopped, and a resumed call does not rebuild
+    /// the lexical index again.
+    #[tokio::test]
+    async fn reindex_cursor_resumes_a_walk() {
+        // Small pages: one call still walks all of them while it is within its time budget.
+        let app = router_with_engine(engine_with_events(5).await);
+        let (status, first) = post(&app, Body::from(r#"{"page_size": 2}"#)).await;
+        assert_eq!(status, StatusCode::OK, "{first}");
+        assert_eq!(first["scanned"], 5);
+        assert_eq!(first["pages"], 3);
+        assert_eq!(first["complete"], true);
+
+        // Resume from a cursor taken after the first two events: exactly the last three remain.
+        let engine = engine_with_events(5).await;
+        let page = engine.reindex_unembedded_page(None, 2).await.unwrap();
+        let cursor = page.next.expect("a full page has a successor").to_string();
+        let app = router_with_engine(engine);
+        let (status, rest) = post(
+            &app,
+            Body::from(serde_json::json!({ "cursor": cursor, "page_size": 2 }).to_string()),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{rest}");
+        assert_eq!(rest["scanned"], 3);
+        assert_eq!(rest["complete"], true);
+        assert!(rest.get("lexical_indexed").is_none());
+    }
+
+    #[tokio::test]
+    async fn reindex_rejects_a_forged_cursor_and_unknown_fields() {
+        let app = router_with_engine(engine_with_events(1).await);
+        let (status, v) = post(&app, Body::from(r#"{"cursor": "not-a-cursor"}"#)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{v}");
+        assert_eq!(v["error"]["code"], "INVALID_CURSOR");
+        let (status, _) = post(&app, Body::from(r#"{"limit": 10}"#)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+}

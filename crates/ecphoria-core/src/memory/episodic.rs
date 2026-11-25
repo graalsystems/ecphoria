@@ -57,6 +57,39 @@ impl Event {
     }
 }
 
+/// Position in a keyset scan of the episodic log: the `(ts, id)` of the last row read.
+///
+/// Serialized as `<epoch microseconds>:<id>` — clients should treat it as opaque and hand back
+/// exactly what the server returned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventCursor {
+    pub ts_micros: i64,
+    pub id: String,
+}
+
+impl std::fmt::Display for EventCursor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.ts_micros, self.id)
+    }
+}
+
+impl std::str::FromStr for EventCursor {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> crate::Result<Self> {
+        let invalid = || crate::Error::Validation(format!("invalid cursor '{s}'"));
+        let (ts, id) = s.split_once(':').ok_or_else(invalid)?;
+        let ts_micros = ts.parse::<i64>().map_err(|_| invalid())?;
+        if id.is_empty() {
+            return Err(invalid());
+        }
+        Ok(Self {
+            ts_micros,
+            id: id.to_string(),
+        })
+    }
+}
+
 /// Append-only event store backed by DuckDB.
 ///
 /// Uses separate write and read connections for concurrency:
@@ -542,18 +575,67 @@ impl EpisodicStore {
 
     /// Events whose vectors are not yet in the semantic index (`embedded = false`), oldest first.
     pub async fn unembedded_events(&self, limit: usize) -> crate::Result<Vec<Event>> {
+        Ok(self.unembedded_events_after(None, limit).await?.0)
+    }
+
+    /// One page of unembedded events, in `(ts, id)` order, strictly after `after`.
+    ///
+    /// Keyset pagination rather than `LIMIT` on the head of the queue: an event the provider keeps
+    /// refusing stays `embedded = false`, so a head-of-queue scan would read the same failing page
+    /// for ever and never reach the events behind it. The cursor moves past whatever was read,
+    /// embedded or not. Returns the page and the cursor of the next one: `Some` when the page was
+    /// full (more may follow), `None` once the end of the backlog was reached.
+    pub async fn unembedded_events_after(
+        &self,
+        after: Option<&EventCursor>,
+        limit: usize,
+    ) -> crate::Result<(Vec<Event>, Option<EventCursor>)> {
         let db = self.read_conn();
-        let sql = format!(
-            "SELECT {} FROM episodic WHERE embedded IS NOT TRUE ORDER BY ts ASC LIMIT ?",
+        // `epoch_us(ts)` is the exact microsecond value DuckDB stores, so the cursor round-trips
+        // without the precision loss of a formatted timestamp.
+        let mut sql = format!(
+            "SELECT {}, epoch_us(ts) FROM episodic WHERE embedded IS NOT TRUE",
             Self::SELECT_COLS
         );
+        let mut params: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
+        if let Some(c) = after {
+            sql.push_str(" AND (epoch_us(ts) > ? OR (epoch_us(ts) = ? AND id > ?))");
+            params.push(Box::new(c.ts_micros));
+            params.push(Box::new(c.ts_micros));
+            params.push(Box::new(c.id.clone()));
+        }
+        sql.push_str(" ORDER BY ts ASC, id ASC LIMIT ?");
+        params.push(Box::new(limit.max(1) as i64));
+
         let mut stmt = db
             .prepare(&sql)
             .map_err(|e| crate::Error::Query(e.to_string()))?;
+        let refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|b| b.as_ref()).collect();
         let rows = stmt
-            .query_map(duckdb::params![limit as i64], Self::parse_event)
+            .query_map(refs.as_slice(), |row| {
+                let key = EventCursor {
+                    ts_micros: row.get(9)?,
+                    id: row.get(0)?,
+                };
+                Ok((key, Self::parse_event(row)))
+            })
             .map_err(|e| crate::Error::Query(e.to_string()))?;
-        Ok(rows.filter_map(|r| r.ok()).collect())
+
+        let mut events = Vec::new();
+        let mut last = None;
+        let mut read = 0usize;
+        for row in rows {
+            let (key, event) = row.map_err(|e| crate::Error::Query(e.to_string()))?;
+            // The cursor advances past a row even if it fails to parse, so one bad row can neither
+            // pin the scan in place nor, by shortening the page, end it early.
+            if let Ok(event) = event {
+                events.push(event);
+            }
+            last = Some(key);
+            read += 1;
+        }
+        let next = if read >= limit.max(1) { last } else { None };
+        Ok((events, next))
     }
 
     /// Count events not yet embedded (cross-store drift gauge).
@@ -1634,6 +1716,59 @@ mod tests {
             let events = store.query_by_source("app", 10).await.unwrap();
             assert_eq!(events.len(), 1);
             assert_eq!(events[0].event_type, "click");
+        }
+    }
+
+    /// The unembedded scan pages by `(ts, id)`: every event is read exactly once across pages,
+    /// including events that share a timestamp, and the short last page ends the walk.
+    #[tokio::test]
+    async fn unembedded_pages_cover_the_backlog_once_with_timestamp_ties() {
+        let store = EpisodicStore::new();
+        let same_ts = Utc::now();
+        let mut events: Vec<Event> = (0..7).map(|_| make_event("s", "e")).collect();
+        // Five events on one instant: only the id tie-break separates them.
+        for e in events.iter_mut().take(5) {
+            e.timestamp = same_ts;
+        }
+        store.append(&events).await.unwrap();
+
+        let mut seen = Vec::new();
+        let mut cursor: Option<EventCursor> = None;
+        let mut pages = 0;
+        loop {
+            let (page, next) = store
+                .unembedded_events_after(cursor.as_ref(), 3)
+                .await
+                .unwrap();
+            pages += 1;
+            assert!(pages <= 3, "7 events in pages of 3 take 3 pages");
+            seen.extend(page.iter().map(|e| e.id));
+            match next {
+                Some(c) => cursor = Some(c),
+                None => break,
+            }
+        }
+        assert_eq!(pages, 3);
+        let mut expected: Vec<Uuid> = events.iter().map(|e| e.id).collect();
+        expected.sort();
+        let mut got = seen.clone();
+        got.sort();
+        assert_eq!(got, expected, "each event exactly once");
+        assert_eq!(seen.len(), 7);
+    }
+
+    #[test]
+    fn event_cursor_round_trips_and_rejects_garbage() {
+        let c = EventCursor {
+            ts_micros: 1_764_000_000_123_456,
+            id: "6f1c1a52-1111-4a2b-9c3d-000000000001".into(),
+        };
+        assert_eq!(c.to_string().parse::<EventCursor>().unwrap(), c);
+        for bad in ["", "123", "abc:id", "123:", ":id"] {
+            assert!(
+                bad.parse::<EventCursor>().is_err(),
+                "{bad:?} must be refused"
+            );
         }
     }
 }

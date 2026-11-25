@@ -1311,6 +1311,42 @@ async fn unembedded_events_are_visible_for_reindex() {
     assert_eq!(engine.unembedded_count().await.unwrap(), 3);
 }
 
+/// Paged reindex walks the whole backlog and ends, even when no event can be embedded — the
+/// case where a head-of-queue `LIMIT` scan would re-read the same failing page for ever.
+#[tokio::test]
+async fn reindex_pages_walk_past_events_that_keep_failing() {
+    let engine = EcphoriaEngine::new(inmem_config()).await.unwrap();
+    let events: Vec<Event> = (0..5)
+        .map(|i| Event::new("s", "e", serde_json::json!({ "x": i })))
+        .collect();
+    engine.ingest(events).await.unwrap();
+
+    let mut cursor = None;
+    let mut scanned = 0;
+    let mut pages = 0;
+    loop {
+        let page = engine
+            .reindex_unembedded_page(cursor.as_ref(), 2)
+            .await
+            .unwrap();
+        pages += 1;
+        assert!(
+            pages <= 3,
+            "a walk over 5 events in pages of 2 takes 3 pages"
+        );
+        scanned += page.scanned;
+        // No provider: nothing lands, and nothing is lost either.
+        assert_eq!(page.indexed, 0);
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    assert_eq!(pages, 3);
+    assert_eq!(scanned, 5);
+    assert_eq!(engine.unembedded_count().await.unwrap(), 5);
+}
+
 #[tokio::test]
 async fn migrate_tenant_memories_moves_between_engines() {
     // Simulates a rebalance move: tenant-a's memories move from shard A to shard B.

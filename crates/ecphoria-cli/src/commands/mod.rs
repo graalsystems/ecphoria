@@ -119,8 +119,12 @@ pub enum Command {
         #[command(subcommand)]
         action: GraphCmd,
     },
-    /// Reindex unembedded events into the semantic store
-    Reindex,
+    /// Reindex unembedded events into the semantic store (paged; resumes until the backlog is walked)
+    Reindex {
+        /// Events per page (server default 500, at most 10 000)
+        #[arg(long)]
+        page_size: Option<usize>,
+    },
     /// Rebalance a tenant to a target shard (cluster mode)
     Rebalance {
         #[arg(long)]
@@ -343,7 +347,7 @@ pub async fn execute(cmd: Command, url: &str) -> anyhow::Result<()> {
         Command::Tenant { action } => admin::tenant(url, action).await,
         Command::Memory { action } => admin::memory(url, action).await,
         Command::Graph { action } => admin::graph(url, action).await,
-        Command::Reindex => admin::reindex(url).await,
+        Command::Reindex { page_size } => admin::reindex(url, page_size).await,
         Command::Rebalance {
             tenant,
             target_shard,

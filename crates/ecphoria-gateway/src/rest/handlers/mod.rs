@@ -1126,6 +1126,25 @@ fn urlencoding(s: &str) -> String {
     out
 }
 
+/// Events re-embedded per page of `/admin/reindex` when the caller does not say.
+const REINDEX_DEFAULT_PAGE: usize = 500;
+/// Largest page a caller may ask for: one page is held in memory and embedded before the time
+/// budget is checked again.
+const REINDEX_MAX_PAGE: usize = 10_000;
+/// Time one `/admin/reindex` call spends on pages before it hands a cursor back. Kept well under
+/// the 30 s request timeout so the answer — and its cursor — always reaches the caller.
+const REINDEX_BUDGET: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Optional body of `POST /admin/reindex`.
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReindexRequest {
+    /// Resume a walk: the `next_cursor` of the previous response, unchanged.
+    pub cursor: Option<String>,
+    /// Events per page (default 500, at most 10 000).
+    pub page_size: Option<usize>,
+}
+
 /// Rebuild the derived indexes. Admin; closes cross-store gaps.
 ///
 /// Two independent repairs: re-embed events left unembedded (e.g. the provider was down at
@@ -1133,34 +1152,94 @@ fn urlencoding(s: &str) -> String {
 /// best-effort on the write path, so this is how a deployment converges them after an outage —
 /// or after deleting the index file, which is a supported way to recover from corruption since
 /// DuckDB remains the source of truth.
+///
+/// **Paged.** The unembedded backlog is walked in pages of `page_size` in `(ts, id)` order for at
+/// most [`REINDEX_BUDGET`]; if the walk is not finished the answer carries `next_cursor`, and the
+/// caller posts it back as `{"cursor": …}` until `complete` is true. The cursor moves past events
+/// whose embedding fails, so a walk always ends; those stay pending for the next walk. The
+/// lexical rebuild is a full rebuild, so it runs once, on the call that starts a walk (no cursor).
 pub async fn reindex(
     State(engine): State<Arc<EcphoriaEngine>>,
     shard: Option<Extension<crate::cluster::shard_route::ShardRoutingState>>,
     headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
 ) -> Response {
     metrics::counter!("ecphoria_rest_requests_total", "endpoint" => "reindex").increment(1);
-    let local = match engine.reindex_unembedded(10_000).await {
-        Ok(reindexed) => {
-            let pending = engine.unembedded_count().await.unwrap_or(0);
-            // Best-effort: a lexical rebuild failure degrades keyword recall until the next
-            // restart, but must not mask a successful re-embed.
-            let lexical = match engine.lexical_reindex().await {
-                Ok(n) => serde_json::json!(n),
-                Err(e) => {
-                    tracing::warn!(error = %e, "lexical reindex failed");
-                    serde_json::Value::Null
-                }
-            };
-            serde_json::json!({ "reindexed": reindexed, "pending": pending, "lexical_indexed": lexical })
-        }
-        Err(e) => {
-            return api_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "REINDEX_ERROR",
-                e.to_string(),
-            )
+    let started = std::time::Instant::now();
+
+    // The body is optional: the cluster-wide scatter and older clients post none.
+    let req: ReindexRequest = if body.iter().all(u8::is_ascii_whitespace) {
+        ReindexRequest::default()
+    } else {
+        match serde_json::from_slice(&body) {
+            Ok(r) => r,
+            Err(e) => return api_error(StatusCode::BAD_REQUEST, "INVALID_REQUEST", e.to_string()),
         }
     };
+    let mut cursor = match req
+        .cursor
+        .as_deref()
+        .map(str::parse::<ecphoria_core::EventCursor>)
+    {
+        None => None,
+        Some(Ok(c)) => Some(c),
+        Some(Err(e)) => return api_error(StatusCode::BAD_REQUEST, "INVALID_CURSOR", e.to_string()),
+    };
+    let page_size = req
+        .page_size
+        .unwrap_or(REINDEX_DEFAULT_PAGE)
+        .clamp(1, REINDEX_MAX_PAGE);
+    // The lexical rebuild runs first so its time counts against the page budget. Best-effort: a
+    // failure degrades keyword recall until the next restart, but must not mask the re-embed.
+    let lexical = if cursor.is_none() {
+        Some(match engine.lexical_reindex().await {
+            Ok(n) => serde_json::json!(n),
+            Err(e) => {
+                tracing::warn!(error = %e, "lexical reindex failed");
+                serde_json::Value::Null
+            }
+        })
+    } else {
+        None
+    };
+
+    let (mut reindexed, mut scanned, mut pages) = (0usize, 0usize, 0usize);
+    loop {
+        let page = match engine
+            .reindex_unembedded_page(cursor.as_ref(), page_size)
+            .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                return api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "REINDEX_ERROR",
+                    e.to_string(),
+                )
+            }
+        };
+        pages += 1;
+        reindexed += page.indexed;
+        scanned += page.scanned;
+        cursor = page.next;
+        if cursor.is_none() || started.elapsed() >= REINDEX_BUDGET {
+            break;
+        }
+    }
+    let pending = engine.unembedded_count().await.unwrap_or(0);
+
+    let mut local = serde_json::json!({
+        "reindexed": reindexed,
+        "scanned": scanned,
+        "pages": pages,
+        "page_size": page_size,
+        "pending": pending,
+        "complete": cursor.is_none(),
+        "next_cursor": cursor.as_ref().map(ToString::to_string),
+    });
+    if let Some(lexical) = lexical {
+        local["lexical_indexed"] = lexical;
+    }
     scatter_admin(shard, &headers, "/api/v1/admin/reindex", local).await
 }
 
