@@ -36,7 +36,7 @@ ecphoria memory decay|consolidate|reembed
 ecphoria graph centrality|communities [--as-of RFC3339]
 ecphoria graph path --src A --dst B    # shortest path
 ecphoria graph neighbors <entity> [--depth N --limit N]
-ecphoria reindex                         # reindex unembedded events
+ecphoria reindex [--page-size N]         # reindex unembedded events (follows the cursor to the end)
 ecphoria rebalance --tenant T --target-shard N
 ```
 

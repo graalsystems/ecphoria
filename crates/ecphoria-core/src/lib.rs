@@ -19,6 +19,7 @@ pub use config::CoreConfig;
 pub use embedded::Ecphoria;
 pub use engine::{
     ContradictionGroup, EcphoriaEngine, FeedbackAction, MemoryChange, MemoryFeedback,
-    MemoryProvenance,
+    MemoryProvenance, ReindexPage,
 };
 pub use error::{Error, Result};
+pub use memory::episodic::EventCursor;

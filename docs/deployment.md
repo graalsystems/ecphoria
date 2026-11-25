@@ -450,6 +450,14 @@ per-shard artifacts** (each shard's data lives on its own pods); the response is
 where each landed. For scheduled jobs, run a CronJob per shard StatefulSet, or point each shard's
 backup at its own S3 prefix.
 
+**Reindex is paged.** `/admin/reindex` walks the unembedded backlog in pages (`page_size`, default
+500, at most 10 000) for about 15 s, then answers with `"complete": false` and a `next_cursor`;
+post it back as `{"cursor": "…"}` until `complete` is `true` (`ecphoria reindex` does this for
+you). The cursor steps over events the embedding provider refuses, so a walk always ends — they
+stay in `pending` for the next one. The lexical (FTS5) rebuild runs once, on the call that starts a
+walk. In a sharded cluster the fan-out carries no cursor: each shard walks its own backlog for its
+budget, and a shard that reports `"complete": false` is finished by calling it again.
+
 **Protocol routing.** REST, MCP, and the LLM proxy are **transparently reverse-proxied** to a
 tenant's owning shard, so the official SDKs (Go/Python/TS, all REST) and Claude/MCP clients need no
 special handling. **gRPC and PostgreSQL-wire** are *reject-with-owner* instead: a raw client

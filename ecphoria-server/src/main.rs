@@ -63,16 +63,27 @@ async fn main() -> anyhow::Result<()> {
             // vectors), so a file-backed server doesn't lose event embeddings on a crash. A graceful
             // SIGTERM persists unconditionally (see the shutdown sequence below).
             let mut since_persist = std::time::Instant::now();
+            // One page per tick, resuming where the last tick stopped: events the provider keeps
+            // refusing are stepped over instead of filling every page, and the walk starts over
+            // once it reaches the end of the backlog.
+            let mut cursor: Option<ecphoria_core::EventCursor> = None;
             loop {
                 tick.tick().await;
-                let added = match engine.reindex_unembedded(1000).await {
-                    Ok(n) if n > 0 => {
-                        tracing::debug!(reindexed = n, "background reindex");
-                        true
+                let added = match engine.reindex_unembedded_page(cursor.as_ref(), 1000).await {
+                    Ok(page) => {
+                        cursor = page.next;
+                        if page.indexed > 0 {
+                            tracing::debug!(
+                                reindexed = page.indexed,
+                                scanned = page.scanned,
+                                "background reindex"
+                            );
+                        }
+                        page.indexed > 0
                     }
-                    Ok(_) => false,
                     Err(e) => {
                         tracing::warn!(error = %e, "background reindex failed");
+                        cursor = None;
                         false
                     }
                 };

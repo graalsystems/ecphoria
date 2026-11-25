@@ -498,7 +498,7 @@ const OPS = [
   { name: "Set retention policy", method: "PUT", path: "/api/v1/admin/retention/policies", desc: "Set a per-source retention (days).", body: { source: "github", days: 90 } },
   { name: "Backup", method: "POST", path: "/api/v1/admin/backup", desc: "Snapshot all four stores to the data dir." },
   { name: "Restore", method: "POST", path: "/api/v1/admin/restore", desc: "Restore all stores from a backup directory.", body: { path: "./data/backups/<stamp>" }, danger: true },
-  { name: "Reindex vectors", method: "POST", path: "/api/v1/admin/reindex", desc: "Rebuild the vector index from persisted embeddings." },
+  { name: "Reindex vectors", method: "POST", path: "/api/v1/admin/reindex", desc: "Re-embed unembedded events and rebuild the keyword index. Paged: post the returned next_cursor back as {\"cursor\": …} until complete is true." },
   { name: "Memory decay", method: "POST", path: "/api/v1/admin/memory/decay", desc: "Forget low-value memories by time-decayed importance." },
   { name: "Memory consolidate", method: "POST", path: "/api/v1/admin/memory/consolidate", desc: "Fold a scope's low-importance tail into one summary memory.", body: { user_id: "alice", keep: 50 } },
   { name: "Consolidate similar", method: "POST", path: "/api/v1/admin/memory/consolidate-similar", desc: "Fold semantically-similar memory clusters into abstractions.", body: { user_id: "alice", threshold: 0.92 } },

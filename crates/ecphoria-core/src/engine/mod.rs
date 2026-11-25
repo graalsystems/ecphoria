@@ -11,7 +11,7 @@ use crate::memory::cognition::{
     Memory, MemoryAdd, MemoryHit, MemoryInput, MemoryOutcome, MemoryRow, MemoryScope, MemoryState,
     MemoryStore,
 };
-use crate::memory::episodic::{EpisodicStore, Event};
+use crate::memory::episodic::{EpisodicStore, Event, EventCursor};
 use crate::memory::lexical::LexicalIndex;
 use crate::memory::query_log::{QueryLogger, QueryRecord};
 use crate::memory::semantic::{ScopedVectorIndex, SearchResult, SemanticEntry, SemanticStore};
@@ -57,6 +57,17 @@ pub struct DocumentIngestResult {
     pub confirmed: usize,
     /// Sections that vanished from the source and were expired.
     pub removed: usize,
+}
+
+/// One page of [`EcphoriaEngine::reindex_unembedded_page`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReindexPage {
+    /// Unembedded events read in this page.
+    pub scanned: usize,
+    /// Of those, the ones whose vectors landed (now `embedded = true`).
+    pub indexed: usize,
+    /// Where the next page starts; `None` once the backlog has been walked to its end.
+    pub next: Option<EventCursor>,
 }
 
 /// Provenance for a memory — the evidence chain behind a distilled fact (see
@@ -645,12 +656,37 @@ impl EcphoriaEngine {
 
     /// Re-embed and index up to `limit` events that were left unembedded (e.g. the embedding
     /// provider was down at ingest). Returns the number newly indexed. Closes the cross-store gap.
+    ///
+    /// Reads the head of the queue only; to walk the whole backlog use
+    /// [`reindex_unembedded_page`](Self::reindex_unembedded_page), which moves past events that
+    /// keep failing instead of reading them again.
     pub async fn reindex_unembedded(&self, limit: usize) -> Result<usize> {
-        let events = self.episodic.unembedded_events(limit).await?;
-        if events.is_empty() {
-            return Ok(0);
-        }
-        Ok(self.ingest.embed_and_index(&events).await)
+        Ok(self.reindex_unembedded_page(None, limit).await?.indexed)
+    }
+
+    /// Re-embed one page of at most `limit` unembedded events, strictly after `after` in
+    /// `(ts, id)` order. Start with `None` and pass back [`ReindexPage::next`] until it is `None`.
+    ///
+    /// The cursor advances over every event read, whether its embedding landed or not, so a
+    /// backlog with permanently failing events still terminates; those stay `embedded = false`
+    /// and are picked up again by the next walk from the start.
+    pub async fn reindex_unembedded_page(
+        &self,
+        after: Option<&EventCursor>,
+        limit: usize,
+    ) -> Result<ReindexPage> {
+        let (events, next) = self.episodic.unembedded_events_after(after, limit).await?;
+        let scanned = events.len();
+        let indexed = if events.is_empty() {
+            0
+        } else {
+            self.ingest.embed_and_index(&events).await
+        };
+        Ok(ReindexPage {
+            scanned,
+            indexed,
+            next,
+        })
     }
 
     /// Ingest events scoped to a specific tenant.
