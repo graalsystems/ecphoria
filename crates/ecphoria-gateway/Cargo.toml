@@ -40,7 +40,6 @@ prost-types.workspace = true
 
 pgwire.workspace = true
 tokio-rustls.workspace = true
-rustls-pemfile.workspace = true
 
 jsonwebtoken.workspace = true
 hmac.workspace = true

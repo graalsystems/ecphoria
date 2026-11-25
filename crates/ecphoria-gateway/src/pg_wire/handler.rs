@@ -46,6 +46,7 @@ fn build_tls_acceptor(
     cert_path: &str,
     key_path: &str,
 ) -> Result<Arc<TlsAcceptor>, Box<dyn std::error::Error>> {
+    use tokio_rustls::rustls::pki_types::pem::{self, PemObject};
     use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
     use tokio_rustls::rustls::ServerConfig;
 
@@ -54,15 +55,21 @@ fn build_tls_acceptor(
     let key_bytes =
         std::fs::read(key_path).map_err(|e| format!("PG TLS: reading key '{key_path}': {e}"))?;
 
-    let certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut &cert_bytes[..])
+    // PEM parsing lives in rustls-pki-types (`PemObject`); the former `rustls-pemfile` crate was a
+    // thin wrapper over the same code and is unmaintained (RUSTSEC-2025-0134).
+    let certs: Vec<CertificateDer<'static>> = CertificateDer::pem_slice_iter(&cert_bytes)
         .collect::<Result<_, _>>()
         .map_err(|e| format!("PG TLS: parsing cert PEM: {e}"))?;
     if certs.is_empty() {
         return Err(format!("PG TLS: no certificates found in '{cert_path}'").into());
     }
-    let key: PrivateKeyDer<'static> = rustls_pemfile::private_key(&mut &key_bytes[..])
-        .map_err(|e| format!("PG TLS: parsing key PEM: {e}"))?
-        .ok_or_else(|| format!("PG TLS: no private key found in '{key_path}'"))?;
+    let key: PrivateKeyDer<'static> = match PrivateKeyDer::from_pem_slice(&key_bytes) {
+        Ok(key) => key,
+        Err(pem::Error::NoItemsFound) => {
+            return Err(format!("PG TLS: no private key found in '{key_path}'").into())
+        }
+        Err(e) => return Err(format!("PG TLS: parsing key PEM: {e}").into()),
+    };
 
     let provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
     let config = ServerConfig::builder_with_provider(provider)
@@ -838,6 +845,13 @@ jEeVrC/BdHMwDCBig3WODjgE\n\
         let empty = dir.path().join("empty.pem");
         std::fs::write(&empty, "not a pem").unwrap();
         assert!(build_tls_acceptor(empty.to_str().unwrap(), key.to_str().unwrap()).is_err());
+
+        // A key file with no private key in it errors, naming the file.
+        let err = build_tls_acceptor(cert.to_str().unwrap(), empty.to_str().unwrap())
+            .err()
+            .expect("a key file without a key must be refused")
+            .to_string();
+        assert!(err.contains("no private key"), "{err}");
     }
 
     /// A socket that opens and says nothing must not hold a connection slot for ever.

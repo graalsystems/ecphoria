@@ -16,4 +16,25 @@ ignore = [
     # Removal: `rust_decimal` adopting rkyv 0.8. Re-check on every dependency review; if it has
     # moved, drop this entry rather than bumping its justification.
     "RUSTSEC-2026-0235",
+
+    # RUSTSEC-2026-0543 — chrono is unmaintained (informational; no vulnerability, no patch).
+    #
+    # Reachability: not a defect report, so there is no vulnerable path to reach. chrono is the
+    # timestamp type of the stack we sit on — arrow (via duckdb), openraft, pgwire and
+    # postgres-types all expose it in their public APIs — and of our own event/memory types.
+    # Replacing it in our code alone would still ship it through every one of those.
+    #
+    # Removal: when arrow, openraft and pgwire have moved to jiff/time (or chrono is maintained
+    # again), migrate our types and drop this entry. Any *vulnerability* advisory against chrono
+    # is not covered by this line and fails the build as usual.
+    "RUSTSEC-2026-0543",
+
+    # RUSTSEC-2024-0436 — paste is unmaintained (informational; no vulnerability, no patch).
+    #
+    # Reachability: a proc-macro, so it runs at compile time only and nothing of it is in the
+    # binary. It arrives through tokenizers 0.22 (and its macro_rules_attribute), pulled by
+    # fastembed for the optional `rerank-local` feature; the default build does not compile it.
+    #
+    # Removal: tokenizers 1.0 (in release candidate) or fastembed dropping paste.
+    "RUSTSEC-2024-0436",
 ]
