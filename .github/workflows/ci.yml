@@ -456,10 +456,15 @@ jobs:
       # que le Dockerfile est revenu à un `cargo build` simple.
       - name: Le binaire embarque son arbre de dépendances
         run: |
+          # Hors du checkout : `ecphoria-server/` y est un répertoire, et `docker cp` y aurait
+          # déposé le binaire au lieu de créer le fichier.
+          bin="$RUNNER_TEMP/ecphoria-server.bin"
           id=$(docker create ecphoria:ci)
-          docker cp "$id":/usr/local/bin/ecphoria-server ./ecphoria-server
+          docker cp "$id":/usr/local/bin/ecphoria-server "$bin"
           docker rm "$id" >/dev/null
-          if ! readelf -S ecphoria-server | grep -q '\.dep-v0'; then
+          # Une lecture qui échoue ne doit pas se faire passer pour une section absente.
+          sections=$(readelf -S "$bin")
+          if ! grep -q '\.dep-v0' <<<"$sections"; then
             echo "::error::ecphoria-server has no cargo-auditable data (.dep-v0): the image SBOM would list no crates"
             exit 1
           fi
