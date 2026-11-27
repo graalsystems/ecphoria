@@ -2,6 +2,12 @@
 
 All notable changes to Ecphoria will be documented in this file.
 
+## [0.2.9] - 2026-11-27
+
+### Bug Fixes
+
+- *(release)* The image SBOM lists the Rust crates: the server and operator images are built with `cargo auditable`, so syft reads the dependency tree embedded in the binary. Up to 0.2.8 the SBOM held only the 26 Alpine packages, and no RUSTSEC advisory could be found from it. CI fails the image build if the binary carries no dependency data (#60).
+
 ## [0.2.8] - 2026-11-25
 
 ### Security
