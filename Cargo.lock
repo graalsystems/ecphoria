@@ -1978,7 +1978,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-cli"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1998,7 +1998,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-cluster"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2030,7 +2030,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-core"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-gateway"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2111,7 +2111,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-integration-tests"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "axum",
  "ecphoria-cluster",
@@ -2127,7 +2127,7 @@ dependencies = [
 
 [[package]]
 name = "ecphoria-server"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "axum",
