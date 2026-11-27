@@ -6,6 +6,11 @@ FROM rust:1-alpine AS chef
 RUN apk add --no-cache musl-dev cmake g++ make pkgconf openssl-dev openssl-libs-static perl \
       linux-headers
 RUN cargo install cargo-chef
+# `cargo auditable` embeds the dependency tree (crate names + versions) in the binary, in a
+# `.dep-v0` section that survives `strip`. Without it the image SBOM lists only the Alpine
+# packages: syft cannot see the crates inside a static Rust binary, so a scanner reading the SBOM
+# would never see a RUSTSEC advisory. With it, syft and `cargo audit bin` read the real tree.
+RUN cargo install cargo-auditable --version 0.7.8 --locked
 WORKDIR /app
 
 # Stage 2: Planner — compute recipe from lock file
@@ -25,7 +30,8 @@ ARG FEATURES=""
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release ${FEATURES} --recipe-path recipe.json
 COPY . .
-RUN cargo build --release ${FEATURES} --bin ecphoria-server && \
+# Only the final crate is relinked by `cargo auditable`; the dependencies cooked above are reused.
+RUN cargo auditable build --release ${FEATURES} --bin ecphoria-server && \
     strip target/release/ecphoria-server
 
 # Stage 4: Runtime — minimal scratch-like image
