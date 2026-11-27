@@ -449,6 +449,26 @@ jobs:
           docker rm -f ecph-smoke >/dev/null 2>&1 || true
           [ "$ok" = 1 ]
 
+      # Le SBOM de la release est produit par syft à partir de l'image. Sans les données
+      # `cargo auditable` dans le binaire, syft ne voit que les paquets Alpine : les SBOM de
+      # v0.2.8 ne listaient aucune crate, si bien qu'un scanner lisant le SBOM ne pouvait voir
+      # aucune advisory RUSTSEC. La section `.dep-v0` survit au `strip` ; son absence veut dire
+      # que le Dockerfile est revenu à un `cargo build` simple.
+      - name: Le binaire embarque son arbre de dépendances
+        run: |
+          # Hors du checkout : `ecphoria-server/` y est un répertoire, et `docker cp` y aurait
+          # déposé le binaire au lieu de créer le fichier.
+          bin="$RUNNER_TEMP/ecphoria-server.bin"
+          id=$(docker create ecphoria:ci)
+          docker cp "$id":/usr/local/bin/ecphoria-server "$bin"
+          docker rm "$id" >/dev/null
+          # Une lecture qui échoue ne doit pas se faire passer pour une section absente.
+          sections=$(readelf -S "$bin")
+          if ! grep -q '\.dep-v0' <<<"$sections"; then
+            echo "::error::ecphoria-server has no cargo-auditable data (.dep-v0): the image SBOM would list no crates"
+            exit 1
+          fi
+
   actionlint:
     name: Workflows
     # v0.2.4 n'a rien publié : le workflow de release était invalide — une dépendance

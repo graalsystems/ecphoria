@@ -16,6 +16,17 @@ combination nobody tests.
 | Python SDK, npm SDK | PyPI, npm | — |
 | GitHub Release + changelog | GitHub | — |
 
+The SBOM lists the Rust crates as well as the Alpine packages because both images are built with
+`cargo auditable`, which embeds the dependency tree in the binary (a `.dep-v0` section that survives
+`strip`); syft reads it from the image. Without it — up to and including 0.2.8 — the SBOM held only
+the 26 Alpine packages, so no RUSTSEC advisory could be found from it. CI fails the image build if
+the section is missing. The same data lets anyone audit a pulled image directly:
+
+```bash
+docker cp "$(docker create ghcr.io/graalsystems/ecphoria:<version>)":/usr/local/bin/ecphoria-server .
+cargo audit bin ecphoria-server
+```
+
 Images are referenced **by digest** in anything that matters: a tag can be moved, a digest cannot.
 The signature and the provenance are over the digest for the same reason.
 
